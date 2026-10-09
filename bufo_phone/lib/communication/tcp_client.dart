@@ -18,14 +18,11 @@ class TcpClient {
       _socket = await Socket.connect(_serverIP, _targetPort);
       _socket?.listen(
         (Uint8List data){
-          print(String.fromCharCodes(data).trim());
         },
         onDone: () {
-          print('Connection closed by server');
           _socket?.destroy();
         },
         onError: (err){
-          print('Error: $err');
         }
       );
       
@@ -34,7 +31,7 @@ class TcpClient {
 
      }catch(e){
         _allowNewConnection = true;
-        return (false,'Failed to connect to server: $e');
+        return (false, e.toString());
      }
   }
 

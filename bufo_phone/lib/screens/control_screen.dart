@@ -1,4 +1,5 @@
 import 'package:bufo/communication/message.dart';
+import 'package:bufo/widgets/custom_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -43,14 +44,15 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin{
   }
 
   
-  void handleTap(TapDownDetails tapDpownDetails) {
+  void _handleTap(TapDownDetails tapDpownDetails) {
       
-    tapPosX = tapDpownDetails.localPosition.dx;
-    tapPosY = tapDpownDetails.localPosition.dy;
-    widget.serverClient.sendCommand(JsonMessage.tap(tapPosX, tapPosY));
+    //tapPosX = tapDpownDetails.localPosition.dx;
+    //tapPosY = tapDpownDetails.localPosition.dy;
+    //widget.serverClient.sendCommand(JsonMessage.tap(tapPosX, tapPosY));
   }
   
   void toolbarSwitch(){
+    debugPrint('Toolbar');
     setState(() {
       _toolbarEnabled = _toolbarEnabled?false:true;
     });
@@ -67,13 +69,17 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin{
       body: SafeArea(
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTapDown: (TapDownDetails details) => handleTap(details),
+          onTapDown: (TapDownDetails details) => _handleTap(details),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              toolbar(), 
-              keyboard()
+              _toolbar(), 
+              Expanded(
+                child:Center(
+                  child: _messenger()
+                ) 
+              ),
             ],
           ),
         ),
@@ -84,38 +90,47 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin{
   }
 
 
-  Widget toolbar() {
-    if(!_toolbarEnabled){
-      return createIconButton(onPress: toolbarSwitch, icon: Icons.open_in_new);
+  Widget _toolbar() {
+    List<CustomButton> toolbarButtons = [];
+    toolbarButtons.add(
+      CustomButton(
+          callback: toolbarSwitch,
+          buttonsChild: Icon(Icons.open_in_new),
+          switchSetting: _toolbarEnabled ? SwitchSetting.on : SwitchSetting.off,
+      ),
+    );
+    if(_toolbarEnabled){
+      toolbarButtons.add(
+        CustomButton(
+          callback: keyboardSwicth,
+          buttonsChild: Icon(Icons.keyboard),
+          switchSetting: _keyboardEnabled ? SwitchSetting.on : SwitchSetting.off,
+        ),
+      );
+      toolbarButtons.add(
+        CustomButton(
+          callback: widget.serverClient.closeConnection,
+          buttonsChild: Icon(Icons.power_off),
+          secondaryColor: Colors.red,
+        )
+      );
     }
+
+
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        createIconButton(onPress: toolbarSwitch, icon: Icons.open_in_new),
-        createIconButton(onPress: keyboardSwicth, icon: Icons.keyboard),
-        //close connection to server
-        createIconButton(onPress: widget.serverClient.closeConnection, icon: Icons.power_off),
-
-      ],
+      children: toolbarButtons,
     );
   }
-  
-  
-  Expanded keyboard(){
-    if(!_keyboardEnabled){return Expanded(child: Container());}
 
-    return Expanded(
-      child: Container(
-        margin: EdgeInsets.fromLTRB(150, 230, 150, 50),
-        child: Keyboard(serverClient: widget.serverClient),
-      ),
-    ); 
+  
+  
+  Widget _messenger(){
+    if(!_keyboardEnabled){Container();}
+
+    return Keyboard(serverClient: widget.serverClient); 
   }
 
   
 }
 
- /*child: Container(
-          margin: EdgeInsets.all(150.0),
-          child: Keyboard(),
-        ),*/

@@ -1,5 +1,5 @@
 import 'package:bufo/communication/message.dart';
-import 'package:bufo/keyboard/keyboard_button.dart';
+import 'package:bufo/widgets/custom_button.dart';
 import 'package:flutter/material.dart';
 
 import 'package:bufo/communication/tcp_client.dart';
@@ -10,9 +10,15 @@ import 'bufo_keycodes.dart';
 class Keyboard extends StatefulWidget {
  
   final TcpClient serverClient;
+  final double width;
+  final double height;
 
-
-  const new({super.key, required this.serverClient});
+  const new({
+    super.key, 
+    required this.serverClient,
+    this.width = 500,
+    this.height = 180
+  });
 
   @override
   State<Keyboard> createState() => _KeyboardState();
@@ -22,12 +28,15 @@ class _KeyboardState extends State<Keyboard>{
 
   
   void handleKeyPress(String keyValue){
+    debugPrint('KeyPress');
     widget.serverClient.sendCommand(JsonMessage.keyPress(keyValue));
   }
 
   @override
   Widget build(BuildContext context) {
     return  Container(
+      width: widget.width,
+      height: widget.height,
       padding: EdgeInsets.all(5.0),
       color: const Color.fromARGB(98, 147, 7, 28),
       child: createKeys(),
@@ -35,16 +44,17 @@ class _KeyboardState extends State<Keyboard>{
   }
 
   Column createKeys() {
-    List<Expanded> rows = [];
+  List<Expanded> rows = [];
     for (List<String> rowOfKeyValues in bufoKeyCodes) {
       List<Expanded> rowOfButtons = [];
       for(String keyValue in rowOfKeyValues){
         //Modifier keys all hold down when pressed
         if(bufoModifierKeyCodes.contains(keyValue)){
-           rowOfButtons.add(createKeyboardButton(keyValue, true));
+           rowOfButtons.add(_createKeyboardButton(keyValue, true));
+           debugPrint('Modifier: $keyValue');
         }
         else{
-          rowOfButtons.add(createKeyboardButton(keyValue, false));
+          rowOfButtons.add(_createKeyboardButton(keyValue, false));
         }
        
       }
@@ -60,12 +70,15 @@ class _KeyboardState extends State<Keyboard>{
       children: rows,
     );
   }
-  Expanded createKeyboardButton(String keyValue, bool holdDownWhenPressed){
+  Expanded _createKeyboardButton(String keyValue, bool holdDownWhenPressed){
     return Expanded(
-      child: KeyboardButton(
+      child: CustomButton(
         callback: () => handleKeyPress(keyValue), 
-        text: keyValue.toUpperCase(),
-        holdDownWhenPressed: holdDownWhenPressed,
+        buttonsChild: Text(keyValue.length > 5 ? keyValue.substring(0,5): keyValue),
+        padding: 0.0,
+        switchSetting: holdDownWhenPressed ? SwitchSetting.off : SwitchSetting.noSwitch,
+        roundedEdges: false,
+        sfxPath: 'sound_effects/mixkit-metal-button-push-1830.wav',
       )
     );
   }

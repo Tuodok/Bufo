@@ -1,3 +1,4 @@
+import 'package:bufo/widgets/custom_button.dart';
 import 'package:flutter/material.dart';
 import 'control_screen.dart';
 import '../mixins/builder_mixin.dart';
@@ -35,7 +36,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
     TcpClient client = TcpClient(_ipAddress!, int.parse(_portNumber!));
     var (bool succes, String msg) = await client.connectToServer();
     if(!succes){
-      failedToConnectToServer(msg);
+      _failedToConnectToServer(msg);
       return;
     }
 
@@ -47,7 +48,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
     );
   }
 
-  void failedToConnectToServer(String msg) async{
+  void _failedToConnectToServer(String msg) async{
      setState(() {
       _connectionStatus = ConnectionStatus.failed;
       _errorMessage = msg;
@@ -57,7 +58,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
       _connectionStatus = ConnectionStatus.waiting;
     });
   }
-  String? validateIpAddress(String? formFieldContent){
+  String? _validateIpAddress(String? formFieldContent){
     if(formFieldContent == null){
       return 'Enter IP Address';
     }
@@ -77,7 +78,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
     return null;
   }
   
-  String? validatePortNumber(String? formFieldContent) {
+  String? _validatePortNumber(String? formFieldContent) {
     if(formFieldContent == null){
       return 'Enter Port Number';
     }
@@ -112,6 +113,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
     switch(_connectionStatus){
       case ConnectionStatus.connecting:
         return Container(
+          color: Colors.lightBlue,
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -133,34 +135,38 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
     
       case ConnectionStatus.waiting:
         return Container(
-        margin: EdgeInsets.all(20.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: <Widget>[
-              createTextFormField(
-                validate: (content) => validateIpAddress(content),
-                handleSave: (String? formFieldContent) => _ipAddress = formFieldContent,
-                labelText: 'IP Address', 
-                hintText: '10.123.122.5'
-              ),
-              createTextFormField(
-                validate: (content) => validatePortNumber(content),
-                handleSave: (String? formFieldContent) => _portNumber = formFieldContent,
-                labelText: 'Port Number'
-              ),
-              addVerticalSpace(30.0),
-              createTextButton(onPress: handleSubmit, text: 'Connect To Server'),
-            ],
+          margin: EdgeInsets.all(20.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: <Widget>[
+                _createTextFormField(
+                  validate: (content) => _validateIpAddress(content),
+                  handleSave: (String? formFieldContent) => _ipAddress = formFieldContent,
+                  labelText: 'IP Address', 
+                  hintText: '10.123.122.5'
+                ),
+                _createTextFormField(
+                  validate: (content) => _validatePortNumber(content),
+                  handleSave: (String? formFieldContent) => _portNumber = formFieldContent,
+                  labelText: 'Port Number'
+                ),
+                addVerticalSpace(30.0),
+                CustomButton(
+                  callback: handleSubmit, 
+                  buttonsChild: Text('Connect To Server!'),
+                  sfxPath: 'sound_effects/mixkit-metal-button-push-1830.wav',
+                ),
+              ],
+            ),
           ),
-        ),
       );
           
         
     }
   }
 
-  TextFormField createTextFormField({required String? Function(String?) validate ,required void Function(String?) handleSave
+  TextFormField _createTextFormField({required String? Function(String?) validate ,required void Function(String?) handleSave
     ,String labelText = '', String hintText = ''}){
 
     return TextFormField(

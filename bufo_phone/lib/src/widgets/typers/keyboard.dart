@@ -1,21 +1,21 @@
-import 'package:bufo/communication/message.dart';
-import 'package:bufo/widgets/custom_button.dart';
+import 'package:bufo/src/communication/message.dart';
+import 'package:bufo/src/providers/server_client_provider.dart';
+import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
+import 'package:bufo/src/widgets/custom_buttons/switch_button.dart';
 import 'package:flutter/material.dart';
 
-import 'package:bufo/communication/tcp_client.dart';
-import 'bufo_keycodes.dart';
+import 'package:bufo/src/communication/tcp_client.dart';
+import '../../../bufo/bufo_keycodes.dart';
 
 
 
 class Keyboard extends StatefulWidget {
  
-  final TcpClient serverClient;
   final double width;
   final double height;
 
   const new({
     super.key, 
-    required this.serverClient,
     this.width = 500,
     this.height = 180
   });
@@ -29,7 +29,8 @@ class _KeyboardState extends State<Keyboard>{
   
   void handleKeyPress(String keyValue){
     debugPrint('KeyPress');
-    widget.serverClient.sendCommand(JsonMessage.keyPress(keyValue));
+    ServerClientProvider.of(context).serverClient
+        .sendCommand(JsonMessage.keyPress(keyValue));
   }
 
   @override
@@ -71,16 +72,31 @@ class _KeyboardState extends State<Keyboard>{
     );
   }
   Expanded _createKeyboardButton(String keyValue, bool holdDownWhenPressed){
-    return Expanded(
-      child: CustomButton(
-        callback: () => handleKeyPress(keyValue), 
-        buttonsChild: Text(keyValue.length > 5 ? keyValue.substring(0,5): keyValue),
+    if(!holdDownWhenPressed){
+       return Expanded(
+        child: NormalButton(
+          callback: () => handleKeyPress(keyValue),
+          buttonsChild: Text(
+            keyValue.length > 5 ? keyValue.substring(0, 5) : keyValue,
+          ),
+          padding: 0.0,
+          roundedEdges: false,
+          sfxPath: 'sound_effects/mixkit-metal-button-push-1830.wav',
+        ),
+      );
+    }
+     return Expanded(
+      child: SwitchButton(
+        callback: () => handleKeyPress(keyValue),
+        buttonsChild: Text(
+          keyValue.length > 5 ? keyValue.substring(0, 5) : keyValue,
+        ),
         padding: 0.0,
-        switchSetting: holdDownWhenPressed ? SwitchSetting.off : SwitchSetting.noSwitch,
         roundedEdges: false,
         sfxPath: 'sound_effects/mixkit-metal-button-push-1830.wav',
-      )
+      ),
     );
+   
   }
 }
  

@@ -2,12 +2,25 @@ import pyautogui
 
 class Robot:
 
-    _modifier_keys = ['ctrl', 'shift', 'alt', 'altright', 'win']
-    _active_modifier_keys = []
+   
+    
+    def __init__(self):
+        self._screenWidth = pyautogui.size()[0]
+        self._screenHeight = pyautogui.size()[1]
+        self._clickWidthScaler = None
+        self.clickHeightScaler = None
+        self._modifier_keys = ['ctrl', 'shift', 'alt', 'altright', 'win']
+        self._active_modifier_keys = []
 
+    def set_click_pos_scaler(self, clientWidth, clientHeight):
+        print(f'ScreenSize: {self._screenWidth}, {self._screenHeight}')
+        self._clickWidthScaler = self._screenWidth / clientWidth
+        self._clickHeightScaler = self._screenHeight / clientHeight
+    
     def click(self, pos_x, pos_y):
-        print(f'clicking at: {pos_x}, {pos_y}')
-        pyautogui.click(pos_x, pos_y)
+        print(f'ScreenSize: {self._screenWidth}, {self._screenHeight}')
+        print(f'clicking at: {pos_x * self._clickWidthScaler}, {pos_y * self._clickHeightScaler}')
+        pyautogui.click(pos_x * self._clickWidthScaler, pos_y * self._clickHeightScaler)
 
 
     def key_press(self, key):
@@ -26,3 +39,6 @@ class Robot:
 
         for active_modifier in self._active_modifier_keys:
             pyautogui.keyUp(active_modifier)
+
+    def write(self, text):
+        pyautogui.write(text)

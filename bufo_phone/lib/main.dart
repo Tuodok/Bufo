@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/connect_to_server_screen.dart';
+import 'src/screens/connect_to_server_screen.dart';
 
 void main() {
   runApp(const MainApp());

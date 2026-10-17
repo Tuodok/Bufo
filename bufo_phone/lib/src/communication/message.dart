@@ -13,6 +13,9 @@ class JsonMessage {
   JsonMessage.tap(double posX, double posY){
     _jsonMessage = '{"tap": [$posX, $posY]}';
   }
+  JsonMessage.write(String text){
+    _jsonMessage = '{"write": "$text"}';
+  }
   
   @override
   String toString() {

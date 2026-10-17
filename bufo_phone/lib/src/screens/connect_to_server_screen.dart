@@ -1,4 +1,5 @@
-import 'package:bufo/widgets/custom_button.dart';
+import 'package:bufo/src/providers/server_client_provider.dart';
+import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
 import 'package:flutter/material.dart';
 import 'control_screen.dart';
 import '../mixins/builder_mixin.dart';
@@ -43,7 +44,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (BuildContext context) => ControlScreen(serverClient: client),
+        builder: (BuildContext context) => ServerClientProvider(serverClient: client, child: ControlScreen()),
       ),
     );
   }
@@ -152,7 +153,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
                   labelText: 'Port Number'
                 ),
                 addVerticalSpace(30.0),
-                CustomButton(
+                NormalButton(
                   callback: handleSubmit, 
                   buttonsChild: Text('Connect To Server!'),
                   sfxPath: 'sound_effects/mixkit-metal-button-push-1830.wav',

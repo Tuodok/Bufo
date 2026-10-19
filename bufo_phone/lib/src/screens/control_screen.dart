@@ -56,13 +56,13 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
       final RenderBox renderBox = context.findRenderObject() as RenderBox;
       final double tapAreaWidth = renderBox.size.width;
       final double tapAreaHeight = renderBox.size.height;
-      ServerClientProvider.of(context).serverClient.sendCommand(JsonMessage.screenSize(tapAreaWidth, tapAreaHeight));
+      ServerClientProvider.of(context).serverClient.sendCommand(Message.screenSize(tapAreaWidth, tapAreaHeight));
       _tapAreaSent = true;
     }
     
     _tapPosX = tapDpownDetails.localPosition.dx;
     _tapPosY = tapDpownDetails.localPosition.dy;
-    ServerClientProvider.of(context).serverClient.sendCommand(JsonMessage.tap(_tapPosX, _tapPosY));
+    ServerClientProvider.of(context).serverClient.sendCommand(Message.tap(_tapPosX, _tapPosY));
   }
 
   void toolbarSwitch() {

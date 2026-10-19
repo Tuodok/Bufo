@@ -32,7 +32,7 @@ class _TypeWriterState extends State<TypeWriter> {
 
   void sendText(){
     ServerClientProvider.of(context).serverClient
-                  .sendCommand(JsonMessage.write(_textController.text));
+                  .sendCommand(Message.write(_textController.text));
   }
 
   @override

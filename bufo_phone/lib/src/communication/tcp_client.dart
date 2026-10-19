@@ -35,7 +35,7 @@ class TcpClient {
      }
   }
 
-  void sendCommand(JsonMessage message){
+  void sendCommand(Message message){
     _socket?.write(message);
   }
 

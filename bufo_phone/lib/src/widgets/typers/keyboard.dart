@@ -30,7 +30,7 @@ class _KeyboardState extends State<Keyboard>{
   void handleKeyPress(String keyValue){
     debugPrint('KeyPress');
     ServerClientProvider.of(context).serverClient
-        .sendCommand(JsonMessage.keyPress(keyValue));
+        .sendCommand(Message.keyPress(keyValue));
   }
 
   @override

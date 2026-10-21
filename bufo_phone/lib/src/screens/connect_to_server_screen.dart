@@ -1,4 +1,6 @@
-import 'package:bufo/src/providers/server_client_provider.dart';
+
+import 'package:bufo/src/communication/udp_screenshot_reception.dart';
+import 'package:bufo/src/providers/provider.dart';
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
 import 'package:flutter/material.dart';
 import 'control_screen.dart';
@@ -44,7 +46,13 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (BuildContext context) => ServerClientProvider(serverClient: client, child: ControlScreen()),
+        builder: (BuildContext context) {
+          return Provider(
+            serverClient: client,
+            udpScreenshotReception: UdpScreenshotReception(client.ip, client.serverIp), 
+            child: ControlScreen()
+          );
+        } 
       ),
     );
   }

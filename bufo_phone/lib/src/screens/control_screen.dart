@@ -1,5 +1,7 @@
 import 'package:bufo/src/communication/message.dart';
-import 'package:bufo/src/providers/server_client_provider.dart';
+import 'package:bufo/src/communication/tcp_client.dart';
+import 'package:bufo/src/communication/udp_screenshot_reception.dart';
+import 'package:bufo/src/providers/provider.dart';
 import 'package:bufo/src/widgets/custom_buttons/dumb_switch_button.dart';
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
 import 'package:bufo/src/widgets/typers/keyboard.dart';
@@ -26,6 +28,8 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
   bool _toolbarEnabled = false;
   bool _keyboardEnabled = false;
   bool _typeWriterEnabled = false;
+  
+  String? _errorMsg;
 
   @override
   void initState() {
@@ -33,6 +37,9 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
       DeviceOrientation.landscapeRight,
       DeviceOrientation.landscapeLeft,
     ]);
+
+    _launchUdpScreenshotReception();
+
     super.initState();
   }
 
@@ -47,6 +54,22 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
     super.deactivate();
   }
 
+  Future<void> _launchUdpScreenshotReception() async {
+    TcpClient tcpClient = Provider.of(context).serverClient;
+    UdpScreenshotReception udpScreenshotReception = Provider.of(context).udpScreenshotReception;
+    String? errorMsg = await udpScreenshotReception.launch();
+    if(errorMsg != null){
+      setState(() {
+        _errorMsg = 'Failed to launch Udp server error: $errorMsg';
+      });
+      return;
+    }
+    if(context.mounted){
+      tcpClient.sendCommand(Message.udpPort(udpScreenshotReception.port));
+    }
+  }
+
+
   void _handleTap(TapDownDetails tapDpownDetails) {
     if(!_tapAreaSent){
       final BuildContext? detectionContext  = _detectorKey.currentContext;
@@ -56,13 +79,13 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
       final RenderBox renderBox = context.findRenderObject() as RenderBox;
       final double tapAreaWidth = renderBox.size.width;
       final double tapAreaHeight = renderBox.size.height;
-      ServerClientProvider.of(context).serverClient.sendCommand(Message.screenSize(tapAreaWidth, tapAreaHeight));
+      Provider.of(context).serverClient.sendCommand(Message.screenSize(tapAreaWidth, tapAreaHeight));
       _tapAreaSent = true;
     }
     
     _tapPosX = tapDpownDetails.localPosition.dx;
     _tapPosY = tapDpownDetails.localPosition.dy;
-    ServerClientProvider.of(context).serverClient.sendCommand(Message.tap(_tapPosX, _tapPosY));
+    Provider.of(context).serverClient.sendCommand(Message.tap(_tapPosX, _tapPosY));
   }
 
   void toolbarSwitch() {
@@ -90,30 +113,52 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Stack(
-          children: <Widget>[
-            GestureDetector(
-              key: _detectorKey,
-              behavior: HitTestBehavior.opaque,
-              onTapDown: (TapDownDetails details) => _handleTap(details),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _toolbar(),
-                Expanded(
-                  child: Center(
-                    child: _typer()
+        child: _errorMsg != null
+            ? Center(child: Text(_errorMsg!),)
+            : Stack(
+                children: <Widget>[
+                  GestureDetector(
+                    key: _detectorKey,
+                    behavior: HitTestBehavior.opaque,
+                    onTapDown: (TapDownDetails details) => _handleTap(details),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _toolbar(),
+                      Expanded(
+                        child: Center(
+                          child: _typer()
+                        )
+                      ),
+                    ],
+                  ),
+                  StreamBuilder<Uint8List>(
+                    stream: Provider.of(context).udpScreenshotReception.readyScreenshotStream, 
+                    builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot){
+                      if(snapshot.connectionState == ConnectionState.waiting){
+                        return Center(child: CircularProgressIndicator());
+                      }
+                      if(snapshot.hasData){
+                        return Image.memory(
+                          snapshot.data!,
+                          fit: BoxFit.contain,
+                          gaplessPlayback: true,
+                          errorBuilder: (_,Object error,_){
+                            return  Text('Failed to load JPEG error: ${error.toString()}');
+                          } 
+                        );
+                      }
+                      return Center(child: Text('KÄÄÄÄK!!'),);
+                    }
                   )
-                ),
-              ],
-            ),
-          ] 
-        ),
+                ] 
+              ),
       ),
     );
   }
+  
 
   Widget _toolbar() {
     List<Widget> toolbarButtons = [];
@@ -142,7 +187,7 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
 
       toolbarButtons.add(
         NormalButton(
-          callback: ServerClientProvider.of(context)
+          callback: Provider.of(context)
               .serverClient.closeConnection,
           buttonsChild: Icon(Icons.power_off),
           secondaryColor: Colors.red,
@@ -163,219 +208,45 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
     return null;
     
   }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*import 'package:bufo/src/blocks/switch_block.dart';
-import 'package:bufo/src/communication/message.dart';
-import 'package:bufo/src/providers/server_client_provider.dart';
-import 'package:bufo/src/widgets/custom_buttons/base_button.dart';
-import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
-import 'package:bufo/src/widgets/custom_buttons/switch_button.dart';
-import 'package:bufo/src/widgets/typers/type_writer.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
-import '../mixins/builder_mixin.dart';
-import '../widgets/typers/keyboard.dart';
-import 'package:bufo/src/communication/tcp_client.dart';
-
-
-class ControlScreen extends StatefulWidget {
-
-  const new({super.key});
-
-  @override
-  State<ControlScreen> createState() => _ControlScreenState();
-
 
 }
 
-class _ControlScreenState extends State<ControlScreen> with BuilderMixin{
 
 
-  final SwitchBlock _toolbarSwitchBlock = SwitchBlock();
-  final SwitchBlock _keyboardSwitchBlock = SwitchBlock();
-  final SwitchBlock _typeWriterSwitchBlock = SwitchBlock();
- 
-
-  double tapPosX = 0;
-  double tapPosY = 0;
 
 
-  
-  @override
-  void initState() {
 
 
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.landscapeLeft,
-    ]);
-
-  
-
-    super.initState();
-  }
-
- /* @override
-  void didChangeDependencies() {
-
-    super.didChangeDependencies();
-  }*/
-
-  @override
-  void deactivate() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.landscapeLeft
-    ]);
-    super.deactivate();
-  }
-
- 
-  
-  void _handleTap(TapDownDetails tapDpownDetails) {
-      
-    //tapPosX = tapDpownDetails.localPosition.dx;
-    //tapPosY = tapDpownDetails.localPosition.dy;
-    //ServerClientProvider.of(context).serverClient.sendCommand(JsonMessage.tap(tapPosX, tapPosY));
-  }
-  
-  
-
-  
 
 
-  @override
-  Widget build(BuildContext context) {
-    return  Scaffold(
-      body: SafeArea(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (TapDownDetails details) => _handleTap(details),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _toolbar(), 
-              Expanded(
-                child:Center(
-                  child: _displayActiveTyper()
-                ) 
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
 
-  StreamBuilder _toolbar() {
-
-    return StreamBuilder<bool>(
-        stream: _toolbarSwitchBlock.stream,
-        builder: (context, snapshot) {
-          if(!snapshot.hasData || !snapshot.data!){
-            return  SwitchButton.block(
-              switchBlock: _toolbarSwitchBlock,
-              buttonsChild: Icon(Icons.open_in_new),
-            );
-          }
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <BaseButton>[
-              SwitchButton.block(
-                switchBlock: _toolbarSwitchBlock,
-                buttonsChild: Icon(Icons.open_in_new),
-              ),
-              SwitchButton.block(
-                switchBlock: _keyboardSwitchBlock,
-                buttonsChild: Icon(Icons.keyboard),
-              ),
-              SwitchButton.block(
-                switchBlock: _typeWriterSwitchBlock,
-                buttonsChild: Icon(Icons.short_text),
-              ),
-
-            ],
-          );
-
-        },
-    );
-  }
-
-  StreamBuilder<bool> _displayActiveTyper(){
-     return StreamBuilder<bool>(
-      stream: _keyboardSwitchBlock.stream,
-      builder: (context, keyboardSwitchSnap){
-        return StreamBuilder<bool>(
-          stream: _typeWriterSwitchBlock.stream, 
-          builder: (context, typeWriterSwitchSnap){
-            if(keyboardSwitchSnap.hasData && keyboardSwitchSnap.data!){
-              if(_typeWriterSwitchBlock.isOn){
-                _typeWriterSwitchBlock.toggle();
-              }
-              return Keyboard();
-            }
-            else if(typeWriterSwitchSnap.hasData && typeWriterSwitchSnap.data!){
-              if(_keyboardSwitchBlock.isOn){
-                _keyboardSwitchBlock.toggle();
-              }
-              return TypeWriter();
-            }
-            return Container();
-          }
-        );
-      }
-    );
-  }
-  
 
 
-  
-}
-*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

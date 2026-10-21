@@ -54,6 +54,7 @@ class ScreenCaster:
             self._send_datagrams(img_bytes)
             self._img_id = (self._img_id + 1) & 0xFFFFFFFF
             await asyncio.sleep(1.0/ self.FPS)
+        self._socket.close()
             
     
     def _send_datagrams(self, img_bytes : bytes) -> None:

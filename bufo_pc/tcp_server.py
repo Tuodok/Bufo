@@ -20,7 +20,7 @@ class TCPServer:
         
     
     def start(self):
-        self.task = asyncio.create_task(self._run_server)
+        self.task = asyncio.create_task(self._run_server())
         
     async def _run_server(self):
         self._bind_listener_socket()
@@ -28,10 +28,10 @@ class TCPServer:
         await asyncio.to_thread(self._run_server)
 
     def _bind_listener_socket(self):
-        listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        listener_socket.bind((self._ip_address, 0))
-        self._port = listener_socket.getsockname()[1]
-        return listener_socket
+        self._listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._listener_socket.bind((self._ip_address, 0))
+        self._port = self._listener_socket.getsockname()[1]
+        return self._listener_socket
     
     def _wait_for_client(self) -> None:
         self._listener_socket.listen(1)

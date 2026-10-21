@@ -1,5 +1,5 @@
 import 'package:bufo/src/communication/message.dart';
-import 'package:bufo/src/providers/server_client_provider.dart';
+import 'package:bufo/src/providers/provider.dart';
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
 import 'package:flutter/material.dart';
 
@@ -31,7 +31,7 @@ class _TypeWriterState extends State<TypeWriter> {
   }
 
   void sendText(){
-    ServerClientProvider.of(context).serverClient
+    Provider.of(context).serverClient
                   .sendCommand(Message.write(_textController.text));
   }
 

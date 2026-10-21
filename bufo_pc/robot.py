@@ -8,7 +8,7 @@ class Robot:
         self._screenWidth = pyautogui.size()[0]
         self._screenHeight = pyautogui.size()[1]
         self._clickWidthScaler = None
-        self.clickHeightScaler = None
+        self._clickHeightScaler = None
         self._modifier_keys = ['ctrl', 'shift', 'alt', 'altright', 'win']
         self._active_modifier_keys = []
 

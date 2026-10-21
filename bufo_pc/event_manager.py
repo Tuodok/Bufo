@@ -1,10 +1,15 @@
 import asyncio
-import json
+import struct
 
 from tcp_server import TCPServer
 from robot import Robot
 from screen_caster import ScreenCaster
 
+SCREEN_SIZE_EVENT = 0;
+KEY_PRESS_EVENT = 1;
+TAP_EVENT = 2;
+WRITE_EVENT = 3;
+UDP_EVENT = 4;
 
 class EventManager:
     
@@ -14,32 +19,39 @@ class EventManager:
         self._robot = Robot()
      
        
-    async def run(self) -> None:
+    async def run(self):
         
         self._tcp_server.start()
         #when task is finished connection has been closed
         await self._tcp_server.task
-        # stop screen casting
-        self._screen_caster.stop()
-        await self._screen_caster.task
+        if(self._screen_caster.task):
+            self._screen_caster.stop()
+            await self._screen_caster.task
  
     
-    def handle_server_client_msg(self, client_msg : str) -> None:
-        print(f'data: {client_msg}' )
-        client_msg = json.loads(client_msg)
-            
-        if 'keyPress' in client_msg:
-            self._robot.key_press(client_msg['keyPress'])
-        elif 'write' in client_msg:
-            self._robot._robot.write(client_msg['write'])
-        elif 'screenSize' in client_msg:
-            width = client_msg['screenSize'][0]
-            height = client_msg['screenSize'][1]
+    def handle_server_client_msg(self, client_msg_bytes: bytes):
+        event_type = client_msg_bytes[0]
+        content = client_msg_bytes[1:]
+        if(event_type & SCREEN_SIZE_EVENT):
+            width, height = struct.unpack('!dd', content)
             self._robot.set_click_pos_scaler(width, height)
-        elif 'tap' in client_msg:
-            self._robot.click(client_msg['tap'][0], client_msg['tap'][1])
-        elif 'udp' in client_msg:
-            self._screen_caster.start()
+            
+        elif(event_type & KEY_PRESS_EVENT):
+            self._robot.key_press(content.decode())
+            
+        elif(event_type & TAP_EVENT):
+            posX, posY =  struct.unpack('!dd', content)
+            self._robot.click(posX, posY)
+        
+        elif(event_type & WRITE_EVENT):
+            self._robot.write(content.decode())
+            
+        elif(event_type & UDP_EVENT):
+            self._screen_caster.start(self._tcp_server.client_ip, int.from_bytes(content, 'big'))
+            
+            
+            
+        
 
    
    

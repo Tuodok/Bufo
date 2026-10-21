@@ -1,10 +1,9 @@
 import 'package:bufo/src/communication/message.dart';
-import 'package:bufo/src/providers/server_client_provider.dart';
+import 'package:bufo/src/providers/provider.dart';
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
 import 'package:bufo/src/widgets/custom_buttons/switch_button.dart';
 import 'package:flutter/material.dart';
 
-import 'package:bufo/src/communication/tcp_client.dart';
 import '../../../bufo/bufo_keycodes.dart';
 
 
@@ -29,7 +28,7 @@ class _KeyboardState extends State<Keyboard>{
   
   void handleKeyPress(String keyValue){
     debugPrint('KeyPress');
-    ServerClientProvider.of(context).serverClient
+    Provider.of(context).serverClient
         .sendCommand(Message.keyPress(keyValue));
   }
 

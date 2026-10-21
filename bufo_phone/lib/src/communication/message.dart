@@ -1,40 +1,55 @@
 
-import 'dart:ffi';
 import 'dart:typed_data';
-import '../../bufo/bufo_event_types.dart';
+
+const int screenSizeEvent = 0;
+const int keyPressEvent = 1;
+const int tapEvent = 2;
+const int writeEvent = 3;
+const int udpEvent = 4;
 
 class Message {
 
-  Uint8List message;
+  final Uint8List _msg;
+  Uint8List get msg {return _msg;}
 
   Message.screenSize(double width, double height)
-    :message = Uint8List(1 + 8 + 8){
-    ByteData data =  ByteData.view(message.buffer);
-    data.setUint8(0, screenSizeEvent);
-    data.setFloat64(1, width);
-    data.setFloat64(1 + 8, height);
-
+    :_msg = Uint8List(1 + 8 + 8){
+      _doubleMessage(screenSizeEvent, width, height);
   }
-  
   
   Message.keyPress(String key)
-    :message = Uint8List(1 + key.length){
-      ByteData data = ByteData.view(message.buffer);
-      data.setUint8(0, keyPressEvent);
-      for(int i = 0 ; i< key.length; i++){
-        data.setUint8(byteOffset, value)
-      }
-    }
-  Message.tap(double posX, double posY){
-    _jsonMessage = '{"tap": [$posX, $posY]}';
+    :_msg = Uint8List(1 + key.length){
+      _stringMessage(keyPressEvent, key);
   }
-  Message.write(String text){
-    _jsonMessage = '{"write": "$text"}';
+  Message.tap(double posX, double posY)
+    :_msg = Uint8List(1 + 8 + 8){
+      _doubleMessage(tapEvent, posX, posY);
   }
   
-  @override
-  String toString() {
-    return _jsonMessage;
+  Message.write(String text)
+    :_msg = Uint8List(1 + text.length){
+      _stringMessage(writeEvent, text);
+  }
+  Message.udpPort(int port)
+    :_msg = Uint8List(1 + 2){
+      ByteData data = ByteData.view(_msg.buffer);
+      data.setUint8(0, udpEvent);
+      data.setUint16(1, port);
+    }
+  
+  void _doubleMessage(int eventType,double first, double second){
+    ByteData data = ByteData.view(_msg.buffer);
+    data.setUint8(0, eventType);
+    data.setFloat64(1, first);
+    data.setFloat64(1 + 8, second);
+  }
+
+  void _stringMessage(int eventType, String str){
+    ByteData data = ByteData.view(_msg.buffer);
+    data.setUint8(0, eventType);
+    for (int i = 1; i < str.length; i++) {
+      data.setUint8(i, str.codeUnitAt(i));
+    }
   }
   
 

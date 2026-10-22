@@ -1,24 +1,29 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/cupertino.dart';
+
 import 'message.dart';
 
 class TcpClient {
 
-  final String _serverIP;
+  final InternetAddress _serverIP;
   final int _serverPort;
   late final Socket _socket;
   bool _allowNewConnection = true;
 
-  String get ip => _socket.address.address;
-  String get serverIp => _serverIP;
+  //_socket.address gives server address??????????????????????
+  InternetAddress get ip => _socket.address;
+  InternetAddress get serverIp => _serverIP;
 
   TcpClient(this._serverIP, this._serverPort);
- 
+
   Future<(bool, String)> connectToServer() async {
      if(!_allowNewConnection){return (false,'Already connected');}
      _allowNewConnection = false;
      try {
-      _socket = await Socket.connect(_serverIP, _serverPort);
+      debugPrint('test end');
+      _socket = await Socket.connect(_serverIP, _serverPort, sourceAddress: '10.64.78.247');
+      
       _socket.listen(
         (Uint8List data){
         },

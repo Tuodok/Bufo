@@ -1,4 +1,4 @@
-import asyncio
+
 import socket
 import pyscreeze
 import cv2
@@ -8,40 +8,55 @@ import time
 
 logging.basicConfig(level=logging.INFO)
 
-class ScreenCaster:
+class UdpScreenCaster:
     FPS = 15
     MAX_COMPRESSED_IMG_SIZE = 8 *1024 *1024
     DATAGRAM_DATA_SIZE = 1180
     
-    def __init__(self):
+    def __init__(self, clientValidator: function):
         
+        self._address = socket.gethostbyname(socket.gethostname())
+        self._port = None
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._target_address = None
         self._target_port = None
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        
+        self._clientValidator = clientValidator
         
         self._img_id = 0
         
-        self.task = None
+        self._wait_for_client = True
         self._casting_stopped = False
     
-    def start(self, target_address: str, target_port: int):
-        self._target_address = target_address
-        self._target_port = target_port
-        self.task = asyncio.create_task(self._casting_loop())
+    def start(self):
+
+        self._socket.bind(self._address, 0)
+        self._port = self._socket.getsockname()[1]
+        
+        while self._wait_for_client:
+            msg, client = self._socket.recvfrom(5)
+            
+            validClient = self._clientValidator(self._target_address)
+            if(not validClient):
+                continue
+            elif(msg != 'Hello'):
+                continue
+            self._target_address = client[0]
+            self._target_port = client[1]
+            break
+        
+        self.task = self._casting_loop()
     
     def stop(self):
+        self._wait_for_client = False
         self._casting_stopped = True
     
-    async def _casting_loop(self) -> None:
+    def _casting_loop(self):
         while not self._casting_stopped:
             
-            screenshot = await asyncio.to_thread(pyscreeze.screenshot)
-            success, compressed_img = await asyncio.to_thread(
-                cv2.imencode,
-                '.jpg',
-                screenshot,
-                [cv2.IMWRITE_JPEG_QUALITY, 70]
-            )
+            screenshot = pyscreeze.screenshot()
+            success, compressed_img = cv2.imencode('.jpg',screenshot,[cv2.IMWRITE_JPEG_QUALITY, 70])
+            
             if not success:
                 continue
             
@@ -53,7 +68,7 @@ class ScreenCaster:
             
             self._send_datagrams(img_bytes)
             self._img_id = (self._img_id + 1) & 0xFFFFFFFF
-            await asyncio.sleep(1.0/ self.FPS)
+            time.sleep(1.0/ self.FPS)
         self._socket.close()
             
     

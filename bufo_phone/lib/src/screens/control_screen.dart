@@ -21,6 +21,9 @@ class ControlScreen extends StatefulWidget {
 
 class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
 
+  late final TcpClient _tcpClient;
+  late final UdpScreenshotReception _udpScreenshotReception; 
+
   final GlobalKey _detectorKey = GlobalKey();
   bool _tapAreaSent = false;
   double _tapPosX = 0;
@@ -42,6 +45,15 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
 
     super.initState();
   }
+  @override
+  void didChangeDependencies() {
+    _tcpClient = Provider.of(context).serverClient;
+    _udpScreenshotReception = Provider.of(context)
+        .udpScreenshotReception;
+    _launchUdpScreenshotReception();
+
+    super.didChangeDependencies();
+  }
 
   @override
   void deactivate() {
@@ -55,18 +67,11 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
   }
 
   Future<void> _launchUdpScreenshotReception() async {
-    TcpClient tcpClient = Provider.of(context).serverClient;
-    UdpScreenshotReception udpScreenshotReception = Provider.of(context).udpScreenshotReception;
-    String? errorMsg = await udpScreenshotReception.launch();
-    if(errorMsg != null){
-      setState(() {
-        _errorMsg = 'Failed to launch Udp server error: $errorMsg';
-      });
-      return;
-    }
-    if(context.mounted){
-      tcpClient.sendCommand(Message.udpPort(udpScreenshotReception.port));
-    }
+    
+    
+    debugPrint('SEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEND');
+    _tcpClient.sendCommand(Message.udpPort(_udpScreenshotReception.port));
+    
   }
 
 
@@ -79,13 +84,13 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
       final RenderBox renderBox = context.findRenderObject() as RenderBox;
       final double tapAreaWidth = renderBox.size.width;
       final double tapAreaHeight = renderBox.size.height;
-      Provider.of(context).serverClient.sendCommand(Message.screenSize(tapAreaWidth, tapAreaHeight));
+      _tcpClient.sendCommand(Message.screenSize(tapAreaWidth, tapAreaHeight));
       _tapAreaSent = true;
     }
     
     _tapPosX = tapDpownDetails.localPosition.dx;
     _tapPosY = tapDpownDetails.localPosition.dy;
-    Provider.of(context).serverClient.sendCommand(Message.tap(_tapPosX, _tapPosY));
+    _tcpClient.sendCommand(Message.tap(_tapPosX, _tapPosY));
   }
 
   void toolbarSwitch() {
@@ -135,7 +140,7 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
                     ],
                   ),
                   StreamBuilder<Uint8List>(
-                    stream: Provider.of(context).udpScreenshotReception.readyScreenshotStream, 
+                    stream: _udpScreenshotReception.readyScreenshotStream, 
                     builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot){
                       if(snapshot.connectionState == ConnectionState.waiting){
                         return Center(child: CircularProgressIndicator());

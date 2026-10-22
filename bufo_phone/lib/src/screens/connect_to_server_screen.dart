@@ -1,4 +1,6 @@
 
+import 'dart:io';
+
 import 'package:bufo/src/communication/udp_screenshot_reception.dart';
 import 'package:bufo/src/providers/provider.dart';
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
@@ -7,7 +9,7 @@ import 'control_screen.dart';
 import '../mixins/builder_mixin.dart';
 import '../communication/tcp_client.dart';
 
-enum ConnectionStatus { connecting, failed, waiting }
+enum CurrentState { connecting, failed, waiting }
 
 class ConnectToServerScreen extends StatefulWidget {
 
@@ -22,7 +24,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   String? _ipAddress;
   String? _portNumber;
-  ConnectionStatus _connectionStatus = ConnectionStatus.waiting;
+  CurrentState _connectionStatus = CurrentState.waiting;
   String _errorMessage = '';
  
   
@@ -33,23 +35,35 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
     _formKey.currentState?.save();
 
     setState(() {
-      _connectionStatus = ConnectionStatus.connecting;
+      _connectionStatus = CurrentState.connecting;
     });
 
-    TcpClient client = TcpClient(_ipAddress!, int.parse(_portNumber!));
+    TcpClient client = TcpClient(InternetAddress(_ipAddress!, type: InternetAddressType.IPv4), int.parse(_portNumber!));
     var (bool succes, String msg) = await client.connectToServer();
     if(!succes){
-      _failedToConnectToServer(msg);
+      _networkError(msg);
       return;
     }
-
+    
+    UdpScreenshotReception udpScreenshotReception = UdpScreenshotReception(
+      serverIp: client.serverIp
+    );
+    String? errorMsg = await udpScreenshotReception.launch();
+    if(errorMsg != null){
+      client.closeConnection();
+      _networkError(errorMsg);
+      return;
+    }
+    
+    if(!context.mounted){return;}
     Navigator.pushReplacement(
+      // ignore: use_build_context_synchronously
       context,
       MaterialPageRoute(
         builder: (BuildContext context) {
           return Provider(
             serverClient: client,
-            udpScreenshotReception: UdpScreenshotReception(client.ip, client.serverIp), 
+            udpScreenshotReception: udpScreenshotReception, 
             child: ControlScreen()
           );
         } 
@@ -57,14 +71,14 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
     );
   }
 
-  void _failedToConnectToServer(String msg) async{
+  void _networkError(String msg) async{
      setState(() {
-      _connectionStatus = ConnectionStatus.failed;
+      _connectionStatus = CurrentState.failed;
       _errorMessage = msg;
     });
-    await Future.delayed(Duration(seconds: 10));
+    await Future.delayed(Duration(seconds: 30));
     setState(() {
-      _connectionStatus = ConnectionStatus.waiting;
+      _connectionStatus = CurrentState.waiting;
     });
   }
   String? _validateIpAddress(String? formFieldContent){
@@ -120,7 +134,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
 
   Container body(){
     switch(_connectionStatus){
-      case ConnectionStatus.connecting:
+      case CurrentState.connecting:
         return Container(
           color: Colors.lightBlue,
           child: Center(
@@ -134,15 +148,15 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
             ),
           ),
         );
-      case ConnectionStatus.failed:
+      case CurrentState.failed:
         return Container(
           color: Colors.red,
           child: Center(
-            child: Text('Connectiing to Server Failed: $_errorMessage'),
+            child: Text(_errorMessage),
           ),
         );
     
-      case ConnectionStatus.waiting:
+      case CurrentState.waiting:
         return Container(
           margin: EdgeInsets.all(20.0),
           child: Form(

@@ -13,12 +13,12 @@ class Robot:
         self._active_modifier_keys = []
 
     def set_click_pos_scaler(self, clientWidth, clientHeight):
-        print(f'ScreenSize: {self._screenWidth}, {self._screenHeight}')
+        print(f'client size: {clientWidth}, {clientHeight}')
         self._clickWidthScaler = self._screenWidth / clientWidth
         self._clickHeightScaler = self._screenHeight / clientHeight
     
     def click(self, pos_x, pos_y):
-        print(f'ScreenSize: {self._screenWidth}, {self._screenHeight}')
+        print(f'click client pos: {pos_x}, {pos_y}')
         print(f'clicking at: {pos_x * self._clickWidthScaler}, {pos_y * self._clickHeightScaler}')
         pyautogui.click(pos_x * self._clickWidthScaler, pos_y * self._clickHeightScaler)
 
@@ -41,4 +41,5 @@ class Robot:
             pyautogui.keyUp(active_modifier)
 
     def write(self, text):
+        print(f'Wri: {text}')
         pyautogui.write(text)

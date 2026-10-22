@@ -1,11 +1,11 @@
 
 import 'dart:typed_data';
 
-const int screenSizeEvent = 0;
-const int keyPressEvent = 1;
-const int tapEvent = 2;
-const int writeEvent = 3;
-const int udpEvent = 4;
+const int screenSizeEvent = 1;
+const int keyPressEvent = 2;
+const int tapEvent = 3;
+const int writeEvent = 4;
+const int udpEvent = 5;
 
 class Message {
 
@@ -47,8 +47,8 @@ class Message {
   void _stringMessage(int eventType, String str){
     ByteData data = ByteData.view(_msg.buffer);
     data.setUint8(0, eventType);
-    for (int i = 1; i < str.length; i++) {
-      data.setUint8(i, str.codeUnitAt(i));
+    for (int i = 0; i < str.length; i++) {
+      data.setUint8(1 + i, str.codeUnitAt(i));
     }
   }
   

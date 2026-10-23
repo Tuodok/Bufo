@@ -1,13 +1,14 @@
 
 import 'dart:io';
 
-import 'package:bufo/src/communication/udp_screenshot_reception.dart';
-import 'package:bufo/src/providers/provider.dart';
+import 'package:bufo/src/network/network_manager.dart';
+
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'control_screen.dart';
 import '../mixins/builder_mixin.dart';
-import '../communication/tcp_client.dart';
+
 
 enum CurrentState { connecting, failed, waiting }
 
@@ -27,6 +28,15 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
   CurrentState _connectionStatus = CurrentState.waiting;
   String _errorMessage = '';
  
+
+  @override
+  void initState() {
+     SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    super.initState();
+  }
   
   void handleSubmit() async {
     if(_formKey.currentState == null||!_formKey.currentState!.validate()){
@@ -38,35 +48,24 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
       _connectionStatus = CurrentState.connecting;
     });
 
-    TcpClient client = TcpClient(InternetAddress(_ipAddress!, type: InternetAddressType.IPv4), int.parse(_portNumber!));
-    var (bool succes, String msg) = await client.connectToServer();
-    if(!succes){
-      _networkError(msg);
-      return;
-    }
     
-    UdpScreenshotReception udpScreenshotReception = UdpScreenshotReception(
-      serverIp: client.serverIp
+    String? errorMsg = await NetworkManager.connectToServer(
+      context: context, 
+      serverIp: InternetAddress(_ipAddress!), 
+      serverPort: int.parse(_portNumber!),
     );
-    String? errorMsg = await udpScreenshotReception.launch();
+   
     if(errorMsg != null){
-      client.closeConnection();
       _networkError(errorMsg);
       return;
-    }
+    } 
     
     if(!context.mounted){return;}
     Navigator.pushReplacement(
       // ignore: use_build_context_synchronously
       context,
       MaterialPageRoute(
-        builder: (BuildContext context) {
-          return Provider(
-            serverClient: client,
-            udpScreenshotReception: udpScreenshotReception, 
-            child: ControlScreen()
-          );
-        } 
+        builder: (BuildContext context) => ControlScreen()
       ),
     );
   }
@@ -81,6 +80,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
       _connectionStatus = CurrentState.waiting;
     });
   }
+
   String? _validateIpAddress(String? formFieldContent){
     if(formFieldContent == null){
       return 'Enter IP Address';

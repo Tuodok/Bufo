@@ -5,6 +5,7 @@ import cv2
 import struct
 import logging
 import time
+from io import BytesIO
 
 logging.basicConfig(level=logging.INFO)
 
@@ -28,22 +29,31 @@ class UdpScreenCaster:
         self._wait_for_client = True
         self._casting_stopped = False
     
-    def start(self):
-
-        self._socket.bind(self._address, 0)
+    def getPort(self):
+        return self._port
+    
+    def bind_socket(self):
+        self._socket.bind((self._address, 0))
         self._port = self._socket.getsockname()[1]
+        print(f'udp addr: {self._socket.getsockname()[0]}')
+        print(f'Udp port: {self._port}')
         
-        while self._wait_for_client:
-            msg, client = self._socket.recvfrom(5)
-            
-            validClient = self._clientValidator(self._target_address)
-            if(not validClient):
-                continue
-            elif(msg != 'Hello'):
-                continue
-            self._target_address = client[0]
-            self._target_port = client[1]
-            break
+    def start(self):
+        if (not self._wait_for_client): 
+            return
+        while True:
+            byteMsg, client = self._socket.recvfrom(5)
+            msg = byteMsg.decode()
+            print(f'udp recv msg: {msg}')
+            validClient = self._clientValidator(client[0])
+            print(f'Is client valid: {validClient}')
+            print(f'is Hello = Hello: {msg == 'Hello'}')
+            if(validClient and msg == 'Hello'):
+                print('Check sssss!')
+                self._target_address = client[0]
+                self._target_port = client[1]
+                self._wait_for_client = False;
+                break;
         
         self.task = self._casting_loop()
     
@@ -55,14 +65,15 @@ class UdpScreenCaster:
         while not self._casting_stopped:
             
             screenshot = pyscreeze.screenshot()
-            success, compressed_img = cv2.imencode('.jpg',screenshot,[cv2.IMWRITE_JPEG_QUALITY, 70])
+            img_bytes = BytesIO()
+            screenshot.save(
+                img_bytes,
+                format='JPEG',
+                quality=70,
+                optimize=False
+            )
             
-            if not success:
-                continue
-            
-            img_bytes = compressed_img.tobytes()
-            
-            if(len(img_bytes) > self.MAX_COMPRESSED_IMG_SIZE):
+            if(img_bytes.getbuffer().nbytes > self.MAX_COMPRESSED_IMG_SIZE):
                 logging.warning('Compressed image is to big!')
                 continue
             
@@ -72,18 +83,18 @@ class UdpScreenCaster:
         self._socket.close()
             
     
-    def _send_datagrams(self, img_bytes : bytes) -> None:
-        datagram_count = (len(img_bytes) + self.DATAGRAM_DATA_SIZE) // self.DATAGRAM_DATA_SIZE
+    def _send_datagrams(self, img_bytes : BytesIO) -> None:
+        datagram_count = (img_bytes.getbuffer().nbytes + self.DATAGRAM_DATA_SIZE) // self.DATAGRAM_DATA_SIZE
         
         for datagram_index in range(datagram_count):
-            img_piece = img_bytes[
+            img_piece = img_bytes.getbuffer()[
                 datagram_index * self.DATAGRAM_DATA_SIZE:
                 (datagram_index + 1) * self.DATAGRAM_DATA_SIZE
             ]
 
             # ! = Big-endian, I = unsigned 32, H = unsigned 16
             header = struct.Struct('!IHH').pack(self._img_id, datagram_index, datagram_count)
-            self._socket.sendto(header + img_piece, self._target_address, self._target_port)
+            self._socket.sendto(header + img_piece, (self._target_address, self._target_port))
             
                 
     

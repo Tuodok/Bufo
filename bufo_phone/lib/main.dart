@@ -1,24 +1,8 @@
+import 'package:bufo/src/bufo_app.dart';
 import 'package:flutter/material.dart';
-import 'src/screens/connect_to_server_screen.dart';
 
 void main() {
-  runApp(const MainApp());
+  runApp(const BufoApp());
 }
 
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Bufo',
-      theme: ThemeData(
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.black,
-        ),
-        scaffoldBackgroundColor: const Color.fromARGB(255, 85, 0, 231)
-      ),
-      home: ConnectToServerScreen(),
-    );
-  }
-}

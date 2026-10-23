@@ -7,9 +7,12 @@ class DumbSwitchButton extends StatelessWidget with ButtonBuilder {
 
   final void Function() _callback;
   final StatelessWidget _buttonsChild;
+  // ignore: unused_field
   final bool _isOn;
   final double _padding;
+  // ignore: unused_field
   final Color _primaryColor;
+  // ignore: unused_field
   final Color _secondaryColor;
   final Color _borderColor;
   final double _borderWidth;

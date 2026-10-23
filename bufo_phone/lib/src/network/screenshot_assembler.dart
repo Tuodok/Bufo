@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:typed_data';
 
 
@@ -36,6 +35,11 @@ class ScreenshotChunk {
     required this.index,
     required this.chunksInScreenshot,
   });
+
+  @override
+  String toString() {
+    return 'id: $screenshotId, index: $index, chunkCount: $chunksInScreenshot';
+  }
 }
 
 
@@ -43,11 +47,9 @@ class ScreenshotAssembler {
 
   final Map<int, ScreenshotAssembly> _assemblyTargets = {};
   final int _maxOngoingAssemblies = 6;
+  final void Function(Uint8List) _addToStream;
 
-  final StreamController<Uint8List> _streamController = StreamController<Uint8List>();
-
-  Stream<Uint8List> get screenshotStream => _streamController.stream; 
-
+  ScreenshotAssembler(this._addToStream);
   
 
   void processChunk(ScreenshotChunk chunk){
@@ -58,7 +60,7 @@ class ScreenshotAssembler {
         return;
       }
 
-      if(assemblyTarget.chunks[chunk.index] == null){ return; }
+      if(assemblyTarget.chunks[chunk.index] != null){ return; }
 
       assemblyTarget.addChunk(chunk.jpegChunk, chunk.index);
       if(assemblyTarget.isReady){
@@ -86,7 +88,7 @@ class ScreenshotAssembler {
     for(Uint8List? chunk in _assemblyTargets[assemblyId]!.chunks){
       bytesBuilder.add(chunk!);
     }
-    _streamController.sink.add(bytesBuilder.takeBytes());
+    _addToStream(bytesBuilder.takeBytes());
     _assemblyTargets.remove(assemblyId);
   }
 

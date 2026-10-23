@@ -1,5 +1,6 @@
-import 'package:bufo/src/communication/message.dart';
-import 'package:bufo/src/providers/provider.dart';
+import 'package:bufo/src/network/message.dart';
+import 'package:bufo/src/network/network_manager.dart';
+
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
 import 'package:bufo/src/widgets/custom_buttons/switch_button.dart';
 import 'package:flutter/material.dart';
@@ -27,9 +28,7 @@ class _KeyboardState extends State<Keyboard>{
 
   
   void handleKeyPress(String keyValue){
-    debugPrint('KeyPress');
-    Provider.of(context).serverClient
-        .sendCommand(Message.keyPress(keyValue));
+    NetworkManager.sendMessage(context: context, msg: Message.keyPress(keyValue));
   }
 
   @override

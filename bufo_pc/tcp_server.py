@@ -3,16 +3,18 @@ import socket
 
 from robot import Robot
 
-SCREEN_SIZE_EVENT = 1;
-KEY_PRESS_EVENT = 2;
-TAP_EVENT = 3;
-WRITE_EVENT = 4;
-UDP_EVENT = 5;
+UDP_PORT_MSG = 0
+
+SCREEN_SIZE_EVENT = 1
+KEY_PRESS_EVENT = 2
+TAP_EVENT = 3
+WRITE_EVENT = 4
+
 
 
 class TCPServer:
 
-    def __init__(self):
+    def __init__(self, handleClientDisconnection: function):
         
         self._ip_address = socket.gethostbyname(socket.gethostname())
         self._port = None
@@ -22,49 +24,58 @@ class TCPServer:
         
         self._robot = Robot()
         
+        self._handleClientDisconnection = handleClientDisconnection
+        
         self._end_connection = False
         
     def getClientIp(self):
         return self._client_ip; 
     
-    def start(self):
-        self._bind_listener_socket()
-        self._wait_for_client()
-        self._handleClient, self.client_socket()
-        
-    def _bind_listener_socket(self):
+    def bind_listener_socket(self):
         print('Binding')
         self._listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._listener_socket.bind((self._ip_address, 0))
         self._port = self._listener_socket.getsockname()[1]
+    
+    def start(self, udp_port: int):
+        self._wait_for_client()
+        self._handleClient(udp_port)
+        
+    
     
     def _wait_for_client(self):
         self._listener_socket.listen(1)
         print(f'listening at {self._ip_address} : {self._port}')
 
         client_socket, client_address = self._listener_socket.accept()
-        self.client_socket = client_socket
-        self.client_ip = client_address[0]
+        self._client_socket = client_socket
+        self._client_ip = client_address[0]
         self._listener_socket.close()
       
 
-    def _handleClient(self, client_socket: socket):
+    def _handleClient(self, udpPort: int):
         print('handling client')
+        
+        udpPortMsg = struct.pack('!BH', UDP_PORT_MSG, udpPort)
+        self._client_socket.send(udpPortMsg)
+        print(f'message sent: {udpPortMsg}')
         
         while not self._end_connection:
             try:
-                client_msg = client_socket.recv(1024)
+                client_msg = self._client_socket.recv(1024)
                 if not client_msg:
                     print('client disconnected')
+                    self._handleClientDisconnection()
                     break
               
-                self._callback(client_msg)
+                self._handle_server_client_msg(client_msg)
+                
             except (ConnectionResetError, BrokenPipeError, OSError) as e:
                 print(f'Connection error with {self.client_ip}: {e}')     
                 break       
-        client_socket.close()
+        self._client_socket.close()
     
-    def handle_server_client_msg(self, client_msg_bytes: bytes):
+    def _handle_server_client_msg(self, client_msg_bytes: bytes):
             event_type = client_msg_bytes[0]
             content = client_msg_bytes[1:]
             if(event_type == SCREEN_SIZE_EVENT):

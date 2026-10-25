@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 import 'package:bufo/src/network/message.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,17 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:bufo/src/network/tcp_client.dart';
 import 'package:bufo/src/network/udp_client.dart';
 
-enum TcpServerMessageTypes{
-  udpPort,
-}
-extension Extension on TcpServerMessageTypes{
-  int get value {
-    switch (this) {
-      case TcpServerMessageTypes.udpPort:
-        return 0;
-    }
-  } 
-}
+
 
 class NetworkManagerStateProvider extends StatefulWidget {
   final Widget child;
@@ -51,12 +42,15 @@ class _NetworkManagerStateProviderState extends State<NetworkManagerStateProvide
 
 
 class NetworkManager extends InheritedWidget{
-
+  
+  static const int _udpServerPortInfoEvent = 0;
 
   final StreamController<Uint8List> _screenshotStreamController = StreamController<Uint8List>();
 
   final TcpClient _tcpClient = TcpClient();
   final UdpClient _udpClient = UdpClient();
+
+  Isolate? _udpSocketProcessorThread;
 
   final String? _connectionClosedMsg;
   final void Function(String) _setConnectionClosedMsg;
@@ -91,8 +85,8 @@ class NetworkManager extends InheritedWidget{
     return await manager._tcpClient.connectToServer(
       serverIP: serverIp,
       serverPort: serverPort,
-      handleMsg: manager._handleTcpMsg,
-      handleConnectionClosedByServer: manager._handleTcpConnectionClosure
+      handleMsg: manager.handleTcpMsg,
+      handleConnectionClosedByServer: manager.handleTcpConnectionClosure
     );
   }
   static void closeConnection(BuildContext context){
@@ -108,19 +102,19 @@ class NetworkManager extends InheritedWidget{
     return context.dependOnInheritedWidgetOfExactType<NetworkManager>() as NetworkManager;
   }
 
-  void _handleTcpMsg(Uint8List msg){
+  void handleTcpMsg(Uint8List msg){
     ByteData msgByteData = ByteData.view(msg.buffer);
     int header = msgByteData.getUint8(0);
-    if (header == TcpServerMessageTypes.udpPort.value) {
+    if (header == _udpServerPortInfoEvent) {
      
       int port = msgByteData.getUint16(1);
-       print(' launch udp Port: $port');
       _launchUdpClient(port);
     }
   }
 
-  void _handleTcpConnectionClosure(){
+  void handleTcpConnectionClosure(){
     _udpClient.close();
+    _screenshotStreamController.close();
     _screenshotStreamController.close();
     String msg = 'Connection closed by Server';
     _setConnectionClosedMsg(msg);
@@ -133,18 +127,30 @@ class NetworkManager extends InheritedWidget{
       addScreenshotToStream: _addToScreenshotStream,
     );
     if(errorMsg != null){
-      print('error: $errorMsg');
       _tcpClient.closeConnection();
       _udpClient.close();
       _screenshotStreamController.close();
       _setConnectionClosedMsg(errorMsg);
 
     }
+    _launchUpdSocketProcessorThread();
 
   }
 
   void _addToScreenshotStream(Uint8List screenshot){
     _screenshotStreamController.sink.add(screenshot);
+  }
+
+  void _launchUpdSocketProcessorThread() async {
+    if(_udpSocketProcessorThread != null){return;}
+    _udpClient.hasControlOverSocketDataProcessing = true;
+    ReceivePort receivePort = ReceivePort();
+    _udpSocketProcessorThread = await Isolate.spawn(_udpClient.processSocketData, receivePort.sendPort);
+    receivePort.listen(
+      (dynamic screenshot){
+        _addToScreenshotStream(screenshot);
+      }
+    );
   }
 
 }

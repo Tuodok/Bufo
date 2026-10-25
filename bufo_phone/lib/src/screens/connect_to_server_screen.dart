@@ -2,15 +2,15 @@
 import 'dart:io';
 
 import 'package:bufo/src/network/network_manager.dart';
+import 'package:bufo/src/widgets/custom_app_bar.dart';
 
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'control_screen.dart';
-import '../mixins/builder_mixin.dart';
 
 
-enum CurrentState { connecting, failed, waiting }
+enum ConnectionStatus { connecting, failed, waitingForUserInput }
 
 class ConnectToServerScreen extends StatefulWidget {
 
@@ -20,12 +20,12 @@ class ConnectToServerScreen extends StatefulWidget {
   State<ConnectToServerScreen> createState() => _ConnectToServerScreenState();
 }
 
-class _ConnectToServerScreenState extends State<ConnectToServerScreen> with BuilderMixin  {
+class _ConnectToServerScreenState extends State<ConnectToServerScreen>{
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   String? _ipAddress;
   String? _portNumber;
-  CurrentState _connectionStatus = CurrentState.waiting;
+  ConnectionStatus _connectionStatus = ConnectionStatus.waitingForUserInput;
   String _errorMessage = '';
  
 
@@ -45,7 +45,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
     _formKey.currentState?.save();
 
     setState(() {
-      _connectionStatus = CurrentState.connecting;
+      _connectionStatus = ConnectionStatus.connecting;
     });
 
     
@@ -72,12 +72,12 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
 
   void _networkError(String msg) async{
      setState(() {
-      _connectionStatus = CurrentState.failed;
+      _connectionStatus = ConnectionStatus.failed;
       _errorMessage = msg;
     });
     await Future.delayed(Duration(seconds: 30));
     setState(() {
-      _connectionStatus = CurrentState.waiting;
+      _connectionStatus = ConnectionStatus.waitingForUserInput;
     });
   }
 
@@ -91,14 +91,21 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
     if(match == null || match[0] != formFieldContent){
       return 'Not Valid IP Address';
     }else{
-      List<String> ipOctets = formFieldContent.split('.');
-      for(String ipOctet in ipOctets){
-        if(int.parse(ipOctet) < 0 || int.parse(ipOctet) > 255){
-          return 'Not Valid IP Address';
-        }
+      if(!_validateIpOctets(formFieldContent)){
+        return 'Not Valid IP Address';
       }
     }
     return null;
+  }
+
+  bool _validateIpOctets(String ipAddress){
+    List<String> ipOctets = ipAddress.split('.');
+    for (String ipOctet in ipOctets) {
+      if (int.parse(ipOctet) < 0 || int.parse(ipOctet) > 255) {
+        return false;
+      }
+    }
+    return true;
   }
   
   String? _validatePortNumber(String? formFieldContent) {
@@ -118,79 +125,84 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen> with Buil
   Widget build(BuildContext context) {
     return Scaffold(
       //backgroundColor: Colors.lightGreen,
-      appBar: AppBar(
-       // backgroundColor: Colors.black,
-        centerTitle: true,
-        title: Text(
-          'Bufo',
-          style: TextStyle(
-           //   color: Colors.green
-          ),
-        ),
-      ),
+      appBar: CustomAppBar(),
+      
       body: body()
     );
   }
 
   Container body(){
     switch(_connectionStatus){
-      case CurrentState.connecting:
-        return Container(
-          color: Colors.lightBlue,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                addVerticalSpace(20.0),
-                Text('Connecting to Server...'),
-              ],
-            ),
-          ),
-        );
-      case CurrentState.failed:
-        return Container(
-          color: Colors.red,
-          child: Center(
-            child: Text(_errorMessage),
-          ),
-        );
-    
-      case CurrentState.waiting:
-        return Container(
-          margin: EdgeInsets.all(20.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: <Widget>[
-                _createTextFormField(
-                  validate: (content) => _validateIpAddress(content),
-                  handleSave: (String? formFieldContent) => _ipAddress = formFieldContent,
-                  labelText: 'IP Address', 
-                  hintText: '10.123.122.5'
-                ),
-                _createTextFormField(
-                  validate: (content) => _validatePortNumber(content),
-                  handleSave: (String? formFieldContent) => _portNumber = formFieldContent,
-                  labelText: 'Port Number'
-                ),
-                addVerticalSpace(30.0),
-                NormalButton(
-                  callback: handleSubmit, 
-                  buttonsChild: Text('Connect To Server!'),
-                  sfxPath: 'sound_effects/mixkit-metal-button-push-1830.wav',
-                ),
-              ],
-            ),
-          ),
-      );
-          
-        
+      case ConnectionStatus.waitingForUserInput:
+        return _inputForm();
+      case ConnectionStatus.connecting:
+        return _connenctingToServerDisplay();
+      case ConnectionStatus.failed:
+        return _connectionErrorDisplay();
     }
   }
 
-  TextFormField _createTextFormField({required String? Function(String?) validate ,required void Function(String?) handleSave
-    ,String labelText = '', String hintText = ''}){
+  Container _inputForm(){
+    return Container(
+      margin: EdgeInsets.all(20.0),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: <Widget>[
+            _createTextFormField(
+              validate: (content) => _validateIpAddress(content),
+              handleSave: (String? formFieldContent) =>
+                  _ipAddress = formFieldContent,
+              labelText: 'IP Address',
+              hintText: '10.123.122.5',
+            ),
+            _createTextFormField(
+              validate: (content) => _validatePortNumber(content),
+              handleSave: (String? formFieldContent) =>
+                  _portNumber = formFieldContent,
+              labelText: 'Port Number',
+            ),
+            SizedBox(height: 30.0),
+            NormalButton(
+              callback: handleSubmit,
+              buttonsChild: Text('Connect To Server!'),
+              sfxPath: 'sound_effects/mixkit-metal-button-push-1830.wav',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Container _connenctingToServerDisplay(){
+    return Container(
+      color: Colors.lightBlue,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 20.0),
+            Text('Connecting to Server...'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Container _connectionErrorDisplay(){
+     return Container(
+      color: Colors.red,
+      child: Center(child: Text(_errorMessage)),
+    );
+  }
+
+  TextFormField _createTextFormField({
+    required String? Function(String?) validate,
+    required void Function(String?) handleSave,
+    String labelText = '', 
+    String hintText = ''
+  }){
 
     return TextFormField(
       decoration: InputDecoration(

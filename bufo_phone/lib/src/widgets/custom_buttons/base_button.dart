@@ -35,7 +35,9 @@ abstract class BaseButtonState<T extends BaseButton> extends State<T> with Butto
   @override
   void initState() {
     activeColor = widget.primaryColor;
-    setupAudioPlayer();
+    if(widget.sfxPath != null){
+      _audioPlayer = AudioPlayer();
+    }
     super.initState();
   }
 
@@ -53,29 +55,11 @@ abstract class BaseButtonState<T extends BaseButton> extends State<T> with Butto
   void handleTapCancel();
 
   @protected
-  void setupAudioPlayer() async {
-    if (widget.sfxPath == null) {
-      return;
-    }
-    _audioPlayer!.setReleaseMode(ReleaseMode.stop);
-
-    try {
-      await _audioPlayer!.setSource(AssetSource(widget.sfxPath!));
-    } catch (e, stackTrace) {
-      debugPrint('Failed to set source: $e');
-      debugPrintStack(stackTrace: stackTrace);
-      _audioPlayer = null;
-    }
-  }
+ 
 
   @protected
   Future<void> playAudio() async {
-    try {
-      await _audioPlayer?.resume();
-    } catch (e, stackTrace) {
-      debugPrint('Audio error: $e');
-      debugPrintStack(stackTrace: stackTrace);
-    }
+    _audioPlayer?.play(AssetSource(widget.sfxPath!));
   }
 
   @override
@@ -96,127 +80,3 @@ abstract class BaseButtonState<T extends BaseButton> extends State<T> with Butto
 
   
 
- // @override
-  //State<CustomButton> createState() => _CustomButtonState();
-/*
-abstract class _CustomButtonState extends State<CustomButton> {
-  
-  
-
-  void
-  
-  void _setupAudioPlayer() async {
-    if (widget.sfxPath == null){return;} 
-
-    _audioPlayer = AudioPlayer();
-    _audioPlayer!.setReleaseMode(ReleaseMode.stop);
-
-    try{
-      await _audioPlayer!.setSource(AssetSource(widget.sfxPath!));
-    } catch (e, stackTrace) {
-      debugPrint('Failed to set source: $e');
-      debugPrintStack(stackTrace: stackTrace);
-      _audioPlayer = null;
-    }
-    
-  }
-
-  void _handleTapping(TapEvent eventType) {
-    switch(eventType){
-      case TapEvent.down:
-        _handleTapDown();
-        break;
-      case TapEvent.up:
-        _handleTapUp();
-        break;
-      case TapEvent.cancel:
-        _resetColor();
-        break;
-
-    }
-  }
-
-  void _handleTapDown() async {
-    
-    
-    if (widget.switchSetting != SwitchSetting.noSwitch) {
-      await _playAudio();
-      setState(() {
-        _activeColor = _activeColor == widget.primaryColor
-          ? widget.secondaryColor
-          : widget.primaryColor;
-      });
-      //Necessary if widget.callback() calls setState.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        widget.callback();
-      });
-      return;
-    } 
-    setState(() {
-      _activeColor = widget.secondaryColor;
-    });
-
-   
-    
-  }
-
-  Future<void> _handleTapUp() async {
-    if(widget.switchSetting == SwitchSetting.noSwitch){
-       await _playAudio();
-      _resetColor();
-      //Necessary if widget.callback() calls setState.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        widget.callback();
-      });
-    }
-   
-  }
-
-  Future<void> _playAudio() async {
-    try {
-      await _audioPlayer?.resume();
-    } catch (e, stackTrace) {
-      debugPrint('Audio error: $e');
-      debugPrintStack(stackTrace: stackTrace);
-    }
-  }
-
-  void _resetColor() {
-    setState(() {
-      _activeColor = widget.primaryColor;
-    });
-  }
-
-
-  
-  
-  @override
-  Widget build(BuildContext context){
-    return Container(
-      decoration: BoxDecoration(
-        color: _activeColor,
-        border: BoxBorder.all(
-          color: widget.borderColor,
-          width: widget.borderWidth
-        ),
-        borderRadius: widget.roundedEdges ? BorderRadius.circular(15.0) : BorderRadius.zero,
-      ),
-
-      child: InkWell(
-        onTapDown: (TapDownDetails details) => _handleTapping(TapEvent.down),
-        splashColor: widget.secondaryColor,
-        onTapUp: (TapUpDetails details) => _handleTapping(TapEvent.up),
-        onTapCancel: () => _handleTapping(TapEvent.cancel),
-
-        child:  Padding(
-          padding: EdgeInsets.all(widget.padding),
-          child: FittedBox(
-            fit: BoxFit.none,
-            child: widget.buttonsChild
-          ),
-        ),
-      ),
-    );
-  }  
-
-}*/

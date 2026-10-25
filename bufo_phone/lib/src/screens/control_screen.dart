@@ -1,14 +1,13 @@
 import 'package:bufo/src/network/message.dart';
 import 'package:bufo/src/network/network_manager.dart';
 import 'package:bufo/src/screens/connect_to_server_screen.dart';
-import 'package:bufo/src/widgets/custom_buttons/dumb_switch_button.dart';
+import 'package:bufo/src/widgets/custom_buttons/dumb_button.dart';
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
 import 'package:bufo/src/widgets/typers/keyboard.dart';
 import 'package:bufo/src/widgets/typers/type_writer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../mixins/builder_mixin.dart';
 
 
 class ControlScreen extends StatefulWidget {
@@ -18,7 +17,7 @@ class ControlScreen extends StatefulWidget {
   State<ControlScreen> createState() => _ControlScreenState();
 }
 
-class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
+class _ControlScreenState extends State<ControlScreen> {
 
 
   final GlobalKey _detectorKey = GlobalKey();
@@ -66,7 +65,7 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
       if(detectionContext == null){
         return;
       }
-      final RenderBox renderBox = context.findRenderObject() as RenderBox;
+      final RenderBox renderBox = detectionContext.findRenderObject() as RenderBox;
       final double tapAreaWidth = renderBox.size.width;
       final double tapAreaHeight = renderBox.size.height;
       NetworkManager.sendMessage(context: context , msg: Message.screenSize(tapAreaWidth, tapAreaHeight));
@@ -78,31 +77,31 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
     NetworkManager.sendMessage(context: context, msg: Message.tap(_tapPosX, _tapPosY));
   }
 
-  void _toolbarSwitch() {
+  void toolbarSwitch() {
     setState(() {
       _toolbarEnabled = _toolbarEnabled ? false : true;
     });
   }
 
-  void _keyboardSwicth() {
+  void keyboardSwicth() {
     setState(() {
       _keyboardEnabled = _keyboardEnabled ? false : true;
       _typeWriterEnabled =false;
     });
   }
-  void _typeWriterSwitch(){
+  void typeWriterSwitch(){
     setState(() {
       _typeWriterEnabled = _typeWriterEnabled ? false : true;
       _keyboardEnabled = false;
     });
   }
 
-  Future<void> _changeScreen(Widget screen, int waitingTime) async {
+  Future<void> _goBackToStartingScreen(int waitingTime) async {
     await Future.delayed(Duration(seconds: waitingTime));
     Navigator.pushReplacement(
       // ignore: use_build_context_synchronously
       context,
-      MaterialPageRoute(builder: (BuildContext context) => screen),
+      MaterialPageRoute(builder: (BuildContext context) => ConnectToServerScreen()),
     );
   }
 
@@ -110,99 +109,118 @@ class _ControlScreenState extends State<ControlScreen> with BuilderMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: _screen()
+        child: _body()
       ),
     );
   }
   
-  Widget _screen(){
+  Widget _body(){
     String? networkConnectionEndedMsg = NetworkManager.getConnectionEndedMsg(context);
     if(networkConnectionEndedMsg != null){
-      _changeScreen(ConnectToServerScreen(), 10);
-      return Container(
-        color: Colors.red,
-        child: Center(
-          child: Text(networkConnectionEndedMsg)
-        ),
-      );
-
+      _goBackToStartingScreen(10);
+      return _connectionEndedDisplay(networkConnectionEndedMsg);
     }
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        StreamBuilder<Uint8List>(
-          stream: NetworkManager.getScreenshotStream(context),
-          builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasData) {
-              return Image.memory(
-                snapshot.data!,
-                fit: BoxFit.fill,
-                gaplessPlayback: true,
-                errorBuilder: (_, Object error, _) {
-                  return Text('Failed to load JPEG error: ${error.toString()}');
-                },
-              );
-            }
-            return Center(child: Text('KÄÄÄÄK!!'));
-          },
-        ),
-        GestureDetector(
-          key: _detectorKey,
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (TapDownDetails details) => _handleTap(details),
-        ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _toolbar(),
-            Expanded(child: Center(child: _typer())),
-          ],
-        ),
+        _computerScreenDisplay(),
+        _tapDetector(),
+        _ui()
        
       ],
     );
              
   }
 
-  Column _toolbar() {
-    List<Widget> toolbarButtons = [];
-    toolbarButtons.add(
-      DumbSwitchButton(
-        callback: _toolbarSwitch,
-        buttonsChild: Icon(Icons.open_in_new),
-        isOn: _toolbarEnabled,
+  StreamBuilder<Uint8List> _computerScreenDisplay(){
+    return StreamBuilder<Uint8List>(
+      stream: NetworkManager.getScreenshotStream(context),
+      builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasData) {
+          return Image.memory(
+            snapshot.data!,
+            fit: BoxFit.fill,
+            gaplessPlayback: true,
+            errorBuilder: (_, Object error, _) {
+              return Text('Failed to load JPEG error: ${error.toString()}');
+            },
+          );
+        }
+        return Center(child: Text('KÄÄÄÄK!!'));
+      }
+    );
+  }
+
+  GestureDetector _tapDetector(){
+    return GestureDetector(
+      key: _detectorKey,
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (TapDownDetails details) => _handleTap(details),
+    );
+  }
+
+  Row _ui(){
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _toolbar(),
+        Expanded(child: Center(child: _typer())),
+      ],
+    );
+  }
+  
+  Container _connectionEndedDisplay(String informationMsg){
+    return Container(
+      color: Colors.red,
+      child: Center(
+        child: Text(informationMsg)
       ),
     );
-    if (_toolbarEnabled) {
-      toolbarButtons.add(
-        DumbSwitchButton(
-          callback: _keyboardSwicth,
-          buttonsChild: Icon(Icons.keyboard),
-          isOn: _keyboardEnabled
-        ),
+  }
+
+  Column _toolbar() {
+    if(_toolbarEnabled){
+      return Column(
+        children: <Widget>[
+          DumbButton(
+            callback: toolbarSwitch,
+            buttonsChild: Icon(Icons.open_in_new),
+            color: _toolbarEnabled ? Colors.yellow : Colors.blue,
+          ),
+          DumbButton(
+            callback: keyboardSwicth,
+            buttonsChild: Icon(Icons.keyboard),
+            color: _keyboardEnabled ? Colors.yellow : Colors.blue,
+          ),
+          DumbButton(
+            callback: typeWriterSwitch,
+            buttonsChild: Icon(Icons.text_increase),
+            color: _typeWriterEnabled ? Colors.yellow : Colors.blue,
+          ),
+          SizedBox(height: 10),
+          NormalButton(
+            callback: () => NetworkManager.closeConnection(context),
+            buttonsChild: Icon(Icons.power_off),
+            secondaryColor: Colors.red,
+          ),
+        ],
       );
-      toolbarButtons.add(
-        DumbSwitchButton(
-          callback: _typeWriterSwitch,
-          buttonsChild: Icon(Icons.text_fields),
-          isOn: _typeWriterEnabled,
+      
+    }
+    return Column(
+      children: <Widget>[
+        DumbButton(
+          callback: toolbarSwitch,
+          buttonsChild: Icon(Icons.open_in_new),
+          color: _toolbarEnabled ? Colors.yellow : Colors.blue,
         ),
+      ],
     );
 
-      toolbarButtons.add(
-        NormalButton(
-          callback: () => NetworkManager.closeConnection(context),
-          buttonsChild: Icon(Icons.power_off),
-          secondaryColor: Colors.red,
-        ),
-      );
-    }
-
-    return Column(mainAxisSize: MainAxisSize.min, children: toolbarButtons);
   }
 
   Widget? _typer() {

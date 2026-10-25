@@ -3,38 +3,31 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:bufo/src/widgets/custom_buttons/button_builder.dart';
 import 'package:flutter/material.dart';
 
-class DumbSwitchButton extends StatelessWidget with ButtonBuilder {
+class DumbButton extends StatelessWidget with ButtonBuilder {
 
   final void Function() _callback;
   final StatelessWidget _buttonsChild;
-  // ignore: unused_field
-  final bool _isOn;
+  final Color _color;
   final double _padding;
-  // ignore: unused_field
-  final Color _primaryColor;
-  // ignore: unused_field
-  final Color _secondaryColor;
   final Color _borderColor;
   final double _borderWidth;
   final bool _roundedEdges;
   final String? _sfxPath;
   late final AudioPlayer _audioPlayer = AudioPlayer();
 
-  late final Color _activeColor;
 
-  DumbSwitchButton({
+
+  DumbButton({
     super.key, 
     required this._callback,
     required this._buttonsChild,
-    required this._isOn,
+    required this._color,
     this._padding = 5.0,
-    this._primaryColor = const Color.fromARGB(255, 36, 181, 197),
-    this._secondaryColor = Colors.yellow,
     this._borderColor = Colors.black,
     this._borderWidth = 3.0,
     this._roundedEdges = true,
     this._sfxPath
-  }): _activeColor = _isOn ? _secondaryColor : _primaryColor;
+  });
     
    
    
@@ -51,13 +44,11 @@ class DumbSwitchButton extends StatelessWidget with ButtonBuilder {
   @override
   Widget build(BuildContext context) {
     return buildButton(
-      color: _activeColor, 
+      color: _color, 
       borderColor: _borderColor, 
       borderWidth: _borderWidth, 
       roundEdges: _roundedEdges, 
-      tapDown: handleTapDown, 
-      tapUp: (){}, 
-      tapCancel: (){}, 
+      tapDown: handleTapDown,  
       padding: _padding, 
       buttonsChild: _buttonsChild
     );

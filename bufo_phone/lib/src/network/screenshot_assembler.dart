@@ -17,7 +17,6 @@ class ScreenshotAssembly {
     chunksReceived ++;
     lastUpdated = DateTime.now();
     if(chunksReceived >= chunks.length ){
-
       isReady = true;
     }
   }
@@ -50,7 +49,6 @@ class ScreenshotAssembler {
   final void Function(Uint8List) _addToStream;
 
   ScreenshotAssembler(this._addToStream);
-  
 
   void processChunk(ScreenshotChunk chunk){
     if(_assemblyTargets.containsKey(chunk.screenshotId)){
@@ -95,7 +93,7 @@ class ScreenshotAssembler {
   void _removeLeastActiveAssembly() {
 
     final MapEntry<int, ScreenshotAssembly> leastActiveAssembly = _assemblyTargets.entries.reduce(
-      (a, b) => a.value.lastUpdated.isBefore(b.value.lastUpdated) ? a : b,
+      (MapEntry<int, ScreenshotAssembly> a, MapEntry<int, ScreenshotAssembly> b) => a.value.lastUpdated.isBefore(b.value.lastUpdated) ? a : b,
     );
     _assemblyTargets.remove(leastActiveAssembly.key);
   }

@@ -1,4 +1,5 @@
 
+
 import 'package:flutter/material.dart';
 
 mixin ButtonBuilder {
@@ -7,9 +8,9 @@ mixin ButtonBuilder {
     required Color borderColor,
     required double borderWidth,
     required bool roundEdges,
-    required void Function() tapDown,
-    required void Function() tapUp,
-    required void Function() tapCancel,
+    void Function()? tapDown,
+    void Function()? tapUp,
+    void Function()? tapCancel,
     required double padding,
     required Widget buttonsChild,
   }) {
@@ -23,8 +24,8 @@ mixin ButtonBuilder {
       ),
 
       child: InkWell(
-        onTapDown: (TapDownDetails details) => tapDown(),
-        onTapUp: (TapUpDetails details) => tapUp(),
+        onTapDown: (TapDownDetails details) => tapDown?.call(),
+        onTapUp: (TapUpDetails details) => tapUp?.call(),
         onTapCancel: tapCancel,
 
         child: Padding(

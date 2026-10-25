@@ -3,66 +3,40 @@ import socket
 import pyscreeze
 import cv2
 import struct
-import logging
 import time
 from io import BytesIO
 
-logging.basicConfig(level=logging.INFO)
+
+FPS = 15
+   
+DATAGRAM_DATA_SIZE = 1180
 
 class UdpScreenCaster:
-    FPS = 15
-    MAX_COMPRESSED_IMG_SIZE = 8 *1024 *1024
-    DATAGRAM_DATA_SIZE = 1180
     
-    def __init__(self, clientValidator: function):
+    def __init__(self):
+        
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.port = None
+        self.casting_terminated = False
         
         self._address = socket.gethostbyname(socket.gethostname())
-        self._port = None
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._target_address = None
-        self._target_port = None
-        
-        self._clientValidator = clientValidator
         
         self._img_id = 0
         
-        self._wait_for_client = True
-        self._casting_stopped = False
-    
-    def getPort(self):
-        return self._port
     
     def bind_socket(self):
-        self._socket.bind((self._address, 0))
-        self._port = self._socket.getsockname()[1]
-        print(f'udp addr: {self._socket.getsockname()[0]}')
-        print(f'Udp port: {self._port}')
-        
-    def start(self):
-        if (not self._wait_for_client): 
-            return
-        while True:
-            byteMsg, client = self._socket.recvfrom(5)
-            msg = byteMsg.decode()
-            print(f'udp recv msg: {msg}')
-            validClient = self._clientValidator(client[0])
-            print(f'Is client valid: {validClient}')
-            print(f'is Hello = Hello: {msg == 'Hello'}')
-            if(validClient and msg == 'Hello'):
-                print('Check sssss!')
-                self._target_address = client[0]
-                self._target_port = client[1]
-                self._wait_for_client = False;
-                break;
-        
-        self.task = self._casting_loop()
+        self.socket.bind((self._address, 0))
+        self.port = self.socket.getsockname()[1]
+       
     
-    def stop(self):
-        self._wait_for_client = False
-        self._casting_stopped = True
+    def wait_for_client(self) ->tuple[tuple[str, int], bytes]:
+        handshake_msg, potential_client = self.socket.recvfrom(5)
+        return (potential_client, handshake_msg)
+        
+  
     
-    def _casting_loop(self):
-        while not self._casting_stopped:
+    def start_casting(self, client: tuple[str, int]):
+        while not self.casting_terminated:
             
             screenshot = pyscreeze.screenshot()
             img_bytes = BytesIO()
@@ -73,28 +47,23 @@ class UdpScreenCaster:
                 optimize=False
             )
             
-            if(img_bytes.getbuffer().nbytes > self.MAX_COMPRESSED_IMG_SIZE):
-                logging.warning('Compressed image is to big!')
-                continue
-            
-            self._send_datagrams(img_bytes)
+            self._send_screenshot(img_bytes, client)
             self._img_id = (self._img_id + 1) & 0xFFFFFFFF
-            time.sleep(1.0/ self.FPS)
-        self._socket.close()
+            time.sleep(1.0/ FPS)
             
     
-    def _send_datagrams(self, img_bytes : BytesIO) -> None:
-        datagram_count = (img_bytes.getbuffer().nbytes + self.DATAGRAM_DATA_SIZE) // self.DATAGRAM_DATA_SIZE
+    def _send_screenshot(self, img_bytes : BytesIO, client: tuple[str, int]) -> None:
+        datagrams_per_screenshot = (img_bytes.getbuffer().nbytes + DATAGRAM_DATA_SIZE) // DATAGRAM_DATA_SIZE
         
-        for datagram_index in range(datagram_count):
-            img_piece = img_bytes.getbuffer()[
-                datagram_index * self.DATAGRAM_DATA_SIZE:
-                (datagram_index + 1) * self.DATAGRAM_DATA_SIZE
+        for datagram_index in range(datagrams_per_screenshot):
+            jpeg_chunk = img_bytes.getbuffer()[
+                datagram_index * DATAGRAM_DATA_SIZE:
+                (datagram_index + 1) * DATAGRAM_DATA_SIZE
             ]
 
             # ! = Big-endian, I = unsigned 32, H = unsigned 16
-            header = struct.Struct('!IHH').pack(self._img_id, datagram_index, datagram_count)
-            self._socket.sendto(header + img_piece, (self._target_address, self._target_port))
+            header = struct.Struct('!IHH').pack(self._img_id, datagram_index, datagrams_per_screenshot)
+            self.socket.sendto(header + jpeg_chunk, client)
             
                 
     

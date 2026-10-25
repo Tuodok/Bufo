@@ -1,41 +1,49 @@
 
 import 'dart:typed_data';
 
-const int screenSizeEvent = 1;
-const int keyPressEvent = 2;
-const int tapEvent = 3;
-const int writeEvent = 4;
-const int udpEvent = 5;
+
+
 
 class Message {
 
+  static const int _screenSizeEvent = 10;
+  static const int _keyPressEvent = 11;
+  static const int _tapEvent = 12;
+  static const int _writeEvent = 13;
+  static const int _zoomEvent = 14;
+  static const int _unzoomEvent = 15;
+
   final Uint8List _msg;
-  Uint8List get msg {return _msg;}
+  Uint8List get msg => _msg;
 
   Message.screenSize(double width, double height)
     :_msg = Uint8List(1 + 8 + 8){
-      _doubleMessage(screenSizeEvent, width, height);
+      _doubleMessage(_screenSizeEvent, width, height);
   }
   
   Message.keyPress(String key)
     :_msg = Uint8List(1 + key.length){
-      _stringMessage(keyPressEvent, key);
+      _stringMessage(_keyPressEvent, key);
   }
   Message.tap(double posX, double posY)
     :_msg = Uint8List(1 + 8 + 8){
-      _doubleMessage(tapEvent, posX, posY);
+      _doubleMessage(_tapEvent, posX, posY);
   }
   
   Message.write(String text)
     :_msg = Uint8List(1 + text.length){
-      _stringMessage(writeEvent, text);
+      _stringMessage(_writeEvent, text);
   }
-  Message.udpPort(int port)
-    :_msg = Uint8List(1 + 2){
-      ByteData data = ByteData.view(_msg.buffer);
-      data.setUint8(0, udpEvent);
-      data.setUint16(1, port);
+
+  Message.zoom()
+    :_msg = Uint8List(1){
+      _msg[0] = _zoomEvent;
     }
+  Message.unzoom()
+  :_msg= Uint8List(1){
+    _msg[0] = _unzoomEvent;
+  }
+
   
   void _doubleMessage(int eventType,double first, double second){
     ByteData data = ByteData.view(_msg.buffer);

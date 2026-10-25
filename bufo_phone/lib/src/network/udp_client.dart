@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:isolate';
 
 import 'package:bufo/src/network/screenshot_assembler.dart';
 
@@ -12,21 +13,21 @@ import 'package:bufo/src/network/screenshot_assembler.dart';
 class UdpClient {
 
   //frame id = unsigned 32, datagram index, count = unsigned 16
-  static const int headerSize = 8; 
-  static const int maxImgSize = 8 * 1024 * 1024;
-  static const int maxImgChunks = 7109;
+  static const int _headerSize = 8; 
+  static const int _maxImgChunks = 4000;
 
   RawDatagramSocket? _socket;
   //InternetAddress? _ip;
   InternetAddress? _serverIp;
   int? _serverPort;
 
+
   ScreenshotAssembler? _screenshotAssembler;
   
+  bool hasControlOverSocketDataProcessing = false;
+
   bool _running = false;
   bool _msgReceived = false;
-  int _connectionMessagesSent = 0;
-
 
 
  
@@ -43,12 +44,15 @@ class UdpClient {
     _screenshotAssembler = ScreenshotAssembler(addScreenshotToStream);
     try{
       _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
-      
       _socket!.listen(
-        (RawSocketEvent event){
+        (RawSocketEvent event) async {
           if(event == RawSocketEvent.read){
             _msgReceived = true;
-            _receiveScreenshotChunks();
+            
+            if(hasControlOverSocketDataProcessing){
+              processSocketData();
+            }
+            
           }
           
         },
@@ -58,11 +62,9 @@ class UdpClient {
 
       );
 
-
       bool success = await _connectToUdpServer();
       if(!success)
       {
-        close();
         return 'failed to connect to udp server';
       }
 
@@ -77,15 +79,20 @@ class UdpClient {
   }
 
   Future<bool> _connectToUdpServer() async {
-    _connectionMessagesSent;
+    int connectionMessagesSent = 0;
     while(!_msgReceived){
-      if(_connectionMessagesSent > 10){
-        return false;
+      if(connectionMessagesSent >= 10){
+        break;
       }
       _socket!.send(utf8.encode('Hello'), _serverIp!, _serverPort!);
-      _connectionMessagesSent++;
+      connectionMessagesSent++;
       await Future.delayed(Duration(seconds: 1));
     }
+    if(!_msgReceived){
+      await Future.delayed(Duration(seconds: 5));
+      return _msgReceived ? true : false;
+    }
+    
     return true;
   }
 
@@ -101,26 +108,25 @@ class UdpClient {
     _serverPort = 0;
     _running = false;
     _msgReceived = false;
-    _connectionMessagesSent = 0;
   }
 
-
-  void _receiveScreenshotChunks() {
+  void processSocketData([SendPort? sendPort]) {
     Datagram? datagram;
     while((datagram = _socket!.receive()) != null){
+      
 
-      if(datagram!.data.length < headerSize 
-        || datagram.address != _serverIp){ print('wrong!'); continue; }
+      if(datagram!.data.length < _headerSize 
+        || datagram.address != _serverIp){continue; }
 
-      final ByteData header = ByteData.sublistView(datagram.data.sublist(0, headerSize));
+      final ByteData header = ByteData.sublistView(datagram.data.sublist(0, _headerSize));
       final int screenshotId = header.getInt32(0);
-       final int chunkIndex = header.getInt16(4);
+      final int chunkIndex = header.getInt16(4);
       final int chunksInScreenshot = header.getInt16(6);
      
       
-      Uint8List jpegChunk = datagram.data.sublist(headerSize);
+      Uint8List jpegChunk = datagram.data.sublist(_headerSize);
 
-      if(chunksInScreenshot <= 0 || chunksInScreenshot > maxImgChunks|| 
+      if(chunksInScreenshot <= 0 || chunksInScreenshot > _maxImgChunks|| 
         chunkIndex > chunksInScreenshot){
           continue;
       }
@@ -135,6 +141,13 @@ class UdpClient {
 
     }
   }
+
+}
+void s(){
+  
+}
+
+
 
  /*  Future<InternetAddress?> _getIp() async {
     List<NetworkInterface> interfaces = await NetworkInterface.list(
@@ -152,4 +165,3 @@ class UdpClient {
     }
     return null;
   }*/
-}

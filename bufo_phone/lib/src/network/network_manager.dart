@@ -1,156 +1,125 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:isolate';
-import 'package:bufo/src/network/message.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'tcp_client.dart';
+import 'udp_client.dart';
+import 'message.dart';
 
-import 'package:bufo/src/network/tcp_client.dart';
-import 'package:bufo/src/network/udp_client.dart';
-
-
-
-class NetworkManagerStateProvider extends StatefulWidget {
-  final Widget child;
-  const new({super.key, required this.child});
-
-  @override
-  State<NetworkManagerStateProvider> createState() => _NetworkManagerStateProviderState();
+enum ScreenCastMode{
+  loop,
+  onUserEvent,
+  paused
 }
 
-class _NetworkManagerStateProviderState extends State<NetworkManagerStateProvider> {
-
-  String? _connectionClosedMsg;
-
-  void _setConnectionClosedMsg(String msg){
-    setState(() {
-        _connectionClosedMsg = msg;
-    });
-  }
-
- 
-
-  @override
-  Widget build(BuildContext context) {
-    return NetworkManager(
-      connectionClosedMsg: _connectionClosedMsg,
-      setConnectionClosedMsg: _setConnectionClosedMsg,
-      child: widget.child
-    );
-  }
-}
-
-
-class NetworkManager extends InheritedWidget{
-  
+class NetworkManager{
   static const int _udpServerPortInfoEvent = 0;
 
-  final StreamController<Uint8List> _screenshotStreamController = StreamController<Uint8List>();
 
-  final TcpClient _tcpClient = TcpClient();
-  final UdpClient _udpClient = UdpClient();
+  static final StreamController<Uint8List> _screenshotStreamController = StreamController<Uint8List>();
 
-  Isolate? _udpSocketProcessorThread;
+  static final TcpClient _tcpClient = TcpClient();
+  static final UdpScreenshotRecetpion _udpReception = UdpScreenshotRecetpion();
 
-  final String? _connectionClosedMsg;
-  final void Function(String) _setConnectionClosedMsg;
+  static ScreenCastMode _screenCastMode = ScreenCastMode.loop;
+
+  static Isolate? _udpSocketProcessorThread;
+
+  static String? _connectionClosedMsg;
+ 
+  static void Function(String)? _notifyDisconnectionCallback;
+
  
 
-  NetworkManager({
-    super.key, 
-    this._connectionClosedMsg,
-    required this._setConnectionClosedMsg,
-    required super.child, 
-  });
+  static Stream<Uint8List> get screenshotStream => _screenshotStreamController.stream;
 
-  @override
-  bool updateShouldNotify(NetworkManager oldWidget){
-    return oldWidget._connectionClosedMsg != _connectionClosedMsg;
-  }
-  
 
-  static Stream<Uint8List> getScreenshotStream(BuildContext context)
-     => _getContextsManager(context)._screenshotStreamController.stream;
-
-  static String? getConnectionEndedMsg(BuildContext context){
-    return _getContextsManager(context)._connectionClosedMsg;
+  static void setCallbackForConnectionClosure(void Function(String) callback){
+    _notifyDisconnectionCallback = callback;
+    if(_connectionClosedMsg != null){
+      callback(_connectionClosedMsg!);
+    }
   }
 
   static Future<String?> connectToServer({
-    required BuildContext context, 
     required InternetAddress serverIp, 
     required int serverPort
   }) async{
-    NetworkManager manager = _getContextsManager(context);
-    return await manager._tcpClient.connectToServer(
+    
+    String? errorMsg = await _tcpClient.connectToServer(
       serverIP: serverIp,
       serverPort: serverPort,
-      handleMsg: manager.handleTcpMsg,
-      handleConnectionClosedByServer: manager.handleTcpConnectionClosure
+      handleMsg: _handleTcpMsg,
+      disconnectionCallback: closeConnection
     );
-  }
-  static void closeConnection(BuildContext context){
-    
-    _getContextsManager(context)._tcpClient.closeConnection();
-  }
-
-  static void sendMessage({required BuildContext context, required Message msg}){
-    _getContextsManager(context)._tcpClient.sendMessage(msg);
-  }
-
-  static NetworkManager _getContextsManager(BuildContext context){
-    return context.dependOnInheritedWidgetOfExactType<NetworkManager>() as NetworkManager;
-  }
-
-  void handleTcpMsg(Uint8List msg){
-    ByteData msgByteData = ByteData.view(msg.buffer);
-    int header = msgByteData.getUint8(0);
-    if (header == _udpServerPortInfoEvent) {
-     
-      int port = msgByteData.getUint16(1);
-      _launchUdpClient(port);
+    if(errorMsg == null){
+      String? errMsg = await _launchUdpReception();
+      if(errMsg != null){
+        sendMessage(Message.udp(_udpReception.port));
+        return null;
+      }
+      closeConnection();
+      _connectionClosedMsg = errMsg;
+      return errMsg;
     }
+    closeConnection();
+    _connectionClosedMsg = errorMsg;
+    return errorMsg;
+  }
+  
+
+  static void sendMessage(Message msg){
+    _tcpClient.sendMessage(msg);
   }
 
-  void handleTcpConnectionClosure(){
-    _udpClient.close();
+ 
+
+
+  static void closeConnection(){
+    if(_udpSocketProcessorThread != null){
+      _udpSocketProcessorThread!.kill(priority: Isolate.immediate);
+    }
+    _udpReception.close();
     _screenshotStreamController.close();
     _screenshotStreamController.close();
     String msg = 'Connection closed by Server';
-    _setConnectionClosedMsg(msg);
+    _connectionClosedMsg = msg;
+    _notifyDisconnectionCallback?.call(_connectionClosedMsg!);
+    _udpSocketProcessorThread = null;
   }
 
-  Future<void> _launchUdpClient(int serverPort) async {
-    String? errorMsg = await _udpClient.launch(
-      serverIp: _tcpClient.serverIp!, 
-      serverPort: serverPort,
-      addScreenshotToStream: _addToScreenshotStream,
-    );
-    if(errorMsg != null){
-      _tcpClient.closeConnection();
-      _udpClient.close();
-      _screenshotStreamController.close();
-      _setConnectionClosedMsg(errorMsg);
-
+  static void _handleTcpMsg(Uint8List msg) {
+   
+   
+  }
+  static void _handleActivationOfUdpSocket() {
+    if (_screenCastMode == ScreenCastMode.loop) {
+      _udpReception.hasControlOverSocketDataProcessing = false;
+      _launchUpdSocketProcessorThread();
     }
-    _launchUpdSocketProcessorThread();
-
   }
 
-  void _addToScreenshotStream(Uint8List screenshot){
-    _screenshotStreamController.sink.add(screenshot);
+  static Future<String?> _launchUdpReception() async {
+    if(_screenCastMode == ScreenCastMode.loop){
+      _udpReception.hasControlOverSocketDataProcessing = false;
+    }
+    return await _udpReception.launch(
+      firstDatagramCallback: _handleActivationOfUdpSocket,
+      addScreenshotToStream: (Uint8List screenshot){
+        _screenshotStreamController.sink.add(screenshot);
+      },
+    );
   }
 
-  void _launchUpdSocketProcessorThread() async {
+  static void _launchUpdSocketProcessorThread() async {
     if(_udpSocketProcessorThread != null){return;}
-    _udpClient.hasControlOverSocketDataProcessing = true;
+    print('creating thread');
     ReceivePort receivePort = ReceivePort();
-    _udpSocketProcessorThread = await Isolate.spawn(_udpClient.processSocketData, receivePort.sendPort);
+    _udpSocketProcessorThread = await Isolate.spawn(_udpReception.processSocketData, receivePort.sendPort);
     receivePort.listen(
       (dynamic screenshot){
-        _addToScreenshotStream(screenshot);
+        _screenshotStreamController.sink.add(screenshot);
       }
     );
   }
-
 }

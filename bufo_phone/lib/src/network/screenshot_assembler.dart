@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-
+import 'dart:isolate';
 
 class ScreenshotAssembly {
   final List<Uint8List?> chunks;
@@ -50,7 +50,7 @@ class ScreenshotAssembler {
 
   ScreenshotAssembler(this._addToStream);
 
-  void processChunk(ScreenshotChunk chunk){
+  void processChunk(ScreenshotChunk chunk, [SendPort? sendPort]){
     if(_assemblyTargets.containsKey(chunk.screenshotId)){
       ScreenshotAssembly assemblyTarget = _assemblyTargets[chunk.screenshotId]!;
       if(chunk.chunksInScreenshot != assemblyTarget.chunks.length){
@@ -74,20 +74,26 @@ class ScreenshotAssembler {
     _assemblyTargets[chunk.screenshotId] = ScreenshotAssembly(chunk.chunksInScreenshot);
     _assemblyTargets[chunk.screenshotId]!.addChunk(chunk.jpegChunk, chunk.index);
     if(_assemblyTargets[chunk.screenshotId]!.isReady){
-      _handleAssemblyReady(chunk.screenshotId);
+      _handleAssemblyReady(chunk.screenshotId, sendPort);
     }
       
     
   
   }
 
-  void _handleAssemblyReady(int assemblyId){
+  void _handleAssemblyReady(int assemblyId, [SendPort? sendPort]){
     BytesBuilder bytesBuilder = BytesBuilder(copy: false);
     for(Uint8List? chunk in _assemblyTargets[assemblyId]!.chunks){
       bytesBuilder.add(chunk!);
     }
-    _addToStream(bytesBuilder.takeBytes());
     _assemblyTargets.remove(assemblyId);
+    
+    if(sendPort != null){
+      sendPort.send(bytesBuilder.takeBytes());
+      return;
+    }
+    _addToStream(bytesBuilder.takeBytes());
+    
   }
 
   void _removeLeastActiveAssembly() {

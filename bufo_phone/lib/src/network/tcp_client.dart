@@ -25,7 +25,7 @@ class TcpClient {
     required InternetAddress serverIP, 
     required int serverPort,
     required void Function(Uint8List) handleMsg,
-    required void Function() handleConnectionClosedByServer
+    required void Function() disconnectionCallback
   }) async {
 
      if(!_allowNewConnection){return 'Already connected';}
@@ -43,7 +43,7 @@ class TcpClient {
         onDone: () {
           if(!_internalSocketClosure){
             _reset();
-            handleConnectionClosedByServer();
+            disconnectionCallback();
           }
          
         },

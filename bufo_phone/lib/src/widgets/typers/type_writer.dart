@@ -32,7 +32,7 @@ class _TypeWriterState extends State<TypeWriter> {
   }
 
   void sendText(){
-    NetworkManager.sendMessage(context: context, msg: Message.write(_textController.text));
+    NetworkManager.sendMessage(Message.write(_textController.text));
   }
 
   @override

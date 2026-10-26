@@ -50,7 +50,6 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen>{
 
     
     String? errorMsg = await NetworkManager.connectToServer(
-      context: context, 
       serverIp: InternetAddress(_ipAddress!), 
       serverPort: int.parse(_portNumber!),
     );

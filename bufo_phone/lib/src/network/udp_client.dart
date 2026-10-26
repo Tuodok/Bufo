@@ -1,6 +1,5 @@
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:isolate';
@@ -10,7 +9,7 @@ import 'package:bufo/src/network/screenshot_assembler.dart';
 
 
 
-class UdpClient {
+class UdpScreenshotRecetpion {
 
   //frame id = unsigned 32, datagram index, count = unsigned 16
   static const int _headerSize = 8; 
@@ -27,31 +26,32 @@ class UdpClient {
   bool hasControlOverSocketDataProcessing = false;
 
   bool _running = false;
-  bool _msgReceived = false;
+  bool _waitingForFirstDatagram = true;
 
-
+  int get port => _socket!.port;
  
   Future<String?> launch({
-    required InternetAddress serverIp, 
-    required int serverPort, 
-    required void Function(Uint8List screenshot) addScreenshotToStream
+    required void Function(Uint8List screenshot) addScreenshotToStream,
+    required void Function() firstDatagramCallback,
   }) async {
 
     if(_running){return 'Already running';}
     _running = true;
-    _serverIp = serverIp;
-    _serverPort = serverPort;
+    //_serverIp = serverIp;
+    //_serverPort = serverPort;
     _screenshotAssembler = ScreenshotAssembler(addScreenshotToStream);
     try{
       _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
       _socket!.listen(
-        (RawSocketEvent event) async {
+        (RawSocketEvent event) {
           if(event == RawSocketEvent.read){
-            _msgReceived = true;
-            
+            if(_waitingForFirstDatagram){
+              firstDatagramCallback();
+            }
             if(hasControlOverSocketDataProcessing){
               processSocketData();
             }
+            _waitingForFirstDatagram = false;
             
           }
           
@@ -62,11 +62,11 @@ class UdpClient {
 
       );
 
-      bool success = await _connectToUdpServer();
-      if(!success)
-      {
-        return 'failed to connect to udp server';
-      }
+     // bool success = await _connectToUdpServer();
+      //if(!success)
+      //{
+        //return 'failed to connect to udp server';
+      //}
 
       return null;
 
@@ -74,29 +74,13 @@ class UdpClient {
       _running = false;
       return e.toString();
     }
-   
-    
   }
 
-  Future<bool> _connectToUdpServer() async {
-    int connectionMessagesSent = 0;
-    while(!_msgReceived){
-      if(connectionMessagesSent >= 10){
-        break;
-      }
-      _socket!.send(utf8.encode('Hello'), _serverIp!, _serverPort!);
-      connectionMessagesSent++;
-      await Future.delayed(Duration(seconds: 1));
-    }
-    if(!_msgReceived){
-      await Future.delayed(Duration(seconds: 5));
-      return _msgReceived ? true : false;
-    }
-    
-    return true;
-  }
+
+
 
   void close(){
+    print('close');
     _socket?.close();
     _reset();
   }
@@ -107,10 +91,10 @@ class UdpClient {
     _serverIp = null;
     _serverPort = 0;
     _running = false;
-    _msgReceived = false;
   }
 
   void processSocketData([SendPort? sendPort]) {
+    print('pocess');
     Datagram? datagram;
     while((datagram = _socket!.receive()) != null){
       
@@ -143,9 +127,7 @@ class UdpClient {
   }
 
 }
-void s(){
-  
-}
+
 
 
 

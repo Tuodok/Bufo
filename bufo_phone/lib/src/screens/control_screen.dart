@@ -27,10 +27,15 @@ class _ControlScreenState extends State<ControlScreen> {
   bool _toolbarEnabled = false;
   bool _keyboardEnabled = false;
   bool _typeWriterEnabled = false;
+
+  String? _disconnectionMsg;
   
 
   @override
   void initState() {
+
+    
+
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeRight,
       DeviceOrientation.landscapeLeft,
@@ -55,7 +60,12 @@ class _ControlScreenState extends State<ControlScreen> {
   }
 
 
-
+  void handleDisconnection(String reasonForDisconnection){
+    setState(() {
+      _disconnectionMsg = reasonForDisconnection;
+    });
+    _goBackToStartingScreen(10);
+  }
   
   
 
@@ -68,13 +78,13 @@ class _ControlScreenState extends State<ControlScreen> {
       final RenderBox renderBox = detectionContext.findRenderObject() as RenderBox;
       final double tapAreaWidth = renderBox.size.width;
       final double tapAreaHeight = renderBox.size.height;
-      NetworkManager.sendMessage(context: context , msg: Message.screenSize(tapAreaWidth, tapAreaHeight));
+      NetworkManager.sendMessage(Message.screenSize(tapAreaWidth, tapAreaHeight));
       _tapAreaSent = true;
     }
     
     _tapPosX = tapDpownDetails.localPosition.dx;
     _tapPosY = tapDpownDetails.localPosition.dy;
-    NetworkManager.sendMessage(context: context, msg: Message.tap(_tapPosX, _tapPosY));
+    NetworkManager.sendMessage(Message.tap(_tapPosX, _tapPosY));
   }
 
   void toolbarSwitch() {
@@ -115,10 +125,8 @@ class _ControlScreenState extends State<ControlScreen> {
   }
   
   Widget _body(){
-    String? networkConnectionEndedMsg = NetworkManager.getConnectionEndedMsg(context);
-    if(networkConnectionEndedMsg != null){
-      _goBackToStartingScreen(10);
-      return _connectionEndedDisplay(networkConnectionEndedMsg);
+    if(_disconnectionMsg != null){
+      return _connectionEndedDisplay(_disconnectionMsg!);
     }
     return Stack(
       fit: StackFit.expand,
@@ -134,7 +142,7 @@ class _ControlScreenState extends State<ControlScreen> {
 
   StreamBuilder<Uint8List> _computerScreenDisplay(){
     return StreamBuilder<Uint8List>(
-      stream: NetworkManager.getScreenshotStream(context),
+      stream: NetworkManager.screenshotStream,
       builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
@@ -203,7 +211,7 @@ class _ControlScreenState extends State<ControlScreen> {
           ),
           SizedBox(height: 10),
           NormalButton(
-            callback: () => NetworkManager.closeConnection(context),
+            callback: () => NetworkManager.closeConnection(),
             buttonsChild: Icon(Icons.power_off),
             secondaryColor: Colors.red,
           ),

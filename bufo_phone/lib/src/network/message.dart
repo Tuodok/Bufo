@@ -10,8 +10,9 @@ class Message {
   static const int _keyPressEvent = 11;
   static const int _tapEvent = 12;
   static const int _writeEvent = 13;
-  static const int _zoomEvent = 14;
-  static const int _unzoomEvent = 15;
+  static const int _udpPortInfoEvent = 14;
+  static const int _zoomEvent = 15;
+  static const int _unzoomEvent = 16;
 
   final Uint8List _msg;
   Uint8List get msg => _msg;
@@ -35,6 +36,13 @@ class Message {
       _stringMessage(_writeEvent, text);
   }
 
+  Message.udp(int port)
+    :_msg = Uint8List(1 + 2){
+      ByteData data = ByteData.view(_msg.buffer);
+      data.setUint8(0, _udpPortInfoEvent);
+      data.setUint16(1, port);
+    }
+
   Message.zoom()
     :_msg = Uint8List(1){
       _msg[0] = _zoomEvent;
@@ -43,6 +51,7 @@ class Message {
   :_msg= Uint8List(1){
     _msg[0] = _unzoomEvent;
   }
+
 
   
   void _doubleMessage(int eventType,double first, double second){

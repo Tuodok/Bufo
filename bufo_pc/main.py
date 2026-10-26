@@ -1,6 +1,5 @@
 
-from event_manager import EventManager
+import event_manager
 
 if __name__ == '__main__':
-    event_manager = EventManager()
     event_manager.run()

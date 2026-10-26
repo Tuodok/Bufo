@@ -45,7 +45,7 @@ class _KeyboardState extends State<Keyboard>{
 
   
   void _handleKeyPress(String keyValue){
-    NetworkManager.sendMessage(context: context, msg: Message.keyPress(keyValue));
+    NetworkManager.sendMessage(Message.keyPress(keyValue));
   }
 
   @override

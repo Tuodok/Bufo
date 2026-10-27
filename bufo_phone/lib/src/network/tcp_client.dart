@@ -1,80 +1,70 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/cupertino.dart';
 
-import 'message.dart';
-
+import 'package:bufo/src/network/message.dart';
 class TcpClient {
 
-  //Server Message Header Types:
-  InternetAddress? _serverIP;
+  void Function(String msg)? onConnectionDoneCallback;
+
 
   Socket? _socket;
-  bool _allowNewConnection = true;
+
+  final String _serverIp;
+  final int _serverPort;
+
+  String? _disconnectionMsg;
+
   bool _internalSocketClosure = false;
-
-
-  //_socket.address gives server address??????????????????????
-  InternetAddress? get ip => _socket?.address;
-  InternetAddress? get serverIp => _serverIP;
-
   
+  String? get disconnectionMsg => _disconnectionMsg;
 
 
-  Future<String?> connectToServer({
-    required InternetAddress serverIP, 
-    required int serverPort,
-    required void Function(Uint8List) handleMsg,
-    required void Function() disconnectionCallback
-  }) async {
+  TcpClient({
+    required this._serverIp,
+    required this._serverPort,
+  });
 
-     if(!_allowNewConnection){return 'Already connected';}
-     _allowNewConnection = false;
+  Future<String?> connectToServer() async {
+    if(_socket != null){
+      return 'Already connected';
+    }
 
-     try {
-      debugPrint('test end');
-      _socket = await Socket.connect(serverIP, serverPort);
-      _serverIP = serverIP;
-      serverPort;
+    try{
+      _socket = await Socket.connect(_serverIp, _serverPort, );
       _socket!.listen(
         (Uint8List data){
-          handleMsg(data);
-        },
-        onDone: () {
-          if(!_internalSocketClosure){
-            _reset();
-            disconnectionCallback();
-          }
-         
-        },
-        onError: (err){
           
+        },
+        onDone: (){
+          if(_internalSocketClosure){return;}
+          _closeConnection('Connection closed by server');
+        },
+        onError: (e){
+          _closeConnection('Connection closed with error: ${e.toString()}');
         }
       );
-      
       return null;
+    
+    }catch(e){
+      return e.toString();
+    }
+    
 
-
-     }catch(e){
-        _allowNewConnection = true;
-        return e.toString();
-     }
   }
-
-  void sendMessage(Message message){
-    _socket?.add(message.msg);
+  void sendMessage(Message msg){
+    _socket?.add(msg.msg);
   }
 
   void closeConnection(){
     _internalSocketClosure = true;
+    onConnectionDoneCallback?.call('Connection Closed');
     _socket?.close();
-    _reset();
-  }
-
-  void _reset(){
     _socket = null;
-    _allowNewConnection = true;
-    _serverIP = null;
   }
 
+  void _closeConnection(String infoMsg){
+    onConnectionDoneCallback?.call(infoMsg);
+    _socket?.close();
+    _socket = null;
+  }
 }

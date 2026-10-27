@@ -1,5 +1,6 @@
 
-import event_manager
+from server import Server
 
 if __name__ == '__main__':
-    event_manager.run()
+    server = Server()
+    server.launch()

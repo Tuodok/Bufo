@@ -1,5 +1,4 @@
 import 'package:bufo/src/network/message.dart';
-import 'package:bufo/src/network/network_manager.dart';
 
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
 import 'package:flutter/material.dart';
@@ -9,9 +8,11 @@ class TypeWriter extends StatefulWidget {
   final Color bgColor;
   final double width;
   final double height;
+  final void Function(Message) callback;
 
   const new({
     super.key, 
+    required this.callback,
     this.bgColor = const Color.fromARGB(255, 0, 255, 221),
     this.width = 400.0,
     this.height = 300.0,
@@ -32,14 +33,13 @@ class _TypeWriterState extends State<TypeWriter> {
   }
 
   void sendText(){
-    NetworkManager.sendMessage(Message.write(_textController.text));
+    widget.callback(Message.write(_textController.text));
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: widget.width,
-      height: widget.height,
+    
       decoration: BoxDecoration(
         color: widget.bgColor,
         border: Border.all(

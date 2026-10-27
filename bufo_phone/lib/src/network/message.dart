@@ -12,7 +12,7 @@ class Message {
   static const int _writeEvent = 13;
   static const int _udpPortInfoEvent = 14;
   static const int _zoomEvent = 15;
-  static const int _unzoomEvent = 16;
+  static const int _cancelZoomEvent = 16;
 
   final Uint8List _msg;
   Uint8List get msg => _msg;
@@ -49,7 +49,7 @@ class Message {
     }
   Message.unzoom()
   :_msg= Uint8List(1){
-    _msg[0] = _unzoomEvent;
+    _msg[0] = _cancelZoomEvent;
   }
 
 

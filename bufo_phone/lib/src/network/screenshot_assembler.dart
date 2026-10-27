@@ -1,15 +1,13 @@
 import 'dart:typed_data';
-import 'dart:isolate';
 
-class ScreenshotAssembly {
+class _ScreenshotAssembly {
   final List<Uint8List?> chunks;
   int chunksReceived = 0;
-  int totalBytes = 0;
   DateTime lastUpdated = DateTime.now();
   bool isReady = false;
 
 
-  ScreenshotAssembly(int datagramCount)
+  _ScreenshotAssembly(int datagramCount)
     :chunks = List<Uint8List?>.filled(datagramCount, null);
   
   void addChunk(Uint8List data, int index){
@@ -22,13 +20,13 @@ class ScreenshotAssembly {
   }
 }
 
-class ScreenshotChunk {
+class _ScreenshotChunk {
   final int screenshotId;
   final int index;
   final int chunksInScreenshot;
   final Uint8List jpegChunk;
 
-  ScreenshotChunk({
+  _ScreenshotChunk({
     required this.screenshotId,
     required this.jpegChunk,
     required this.index,
@@ -44,15 +42,45 @@ class ScreenshotChunk {
 
 class ScreenshotAssembler {
 
-  final Map<int, ScreenshotAssembly> _assemblyTargets = {};
+
+  static const int _headerSize = 8;
+  static const int _maxChunksPerScreenshot = 4000;
+
+  final Map<int, _ScreenshotAssembly> _assemblyTargets = {};
   final int _maxOngoingAssemblies = 6;
-  final void Function(Uint8List) _addToStream;
+  final void Function(Uint8List) _screenshotReadyCallback;
 
-  ScreenshotAssembler(this._addToStream);
+  ScreenshotAssembler(this._screenshotReadyCallback);
 
-  void processChunk(ScreenshotChunk chunk, [SendPort? sendPort]){
+  void processScreenshotChunkData(Uint8List data){
+    if(data.length < _headerSize){return;}
+    
+
+    final ByteData header = ByteData.sublistView(data.sublist(0, _headerSize));
+    final int screenshotId = header.getInt32(0);
+    final int chunkIndex = header.getUint16(4);
+    final int chunksInScreenshot = header.getUint16(6);
+    final Uint8List jpegChunk = data.sublist(_headerSize);
+
+    if(chunksInScreenshot <= 0 || chunksInScreenshot > _maxChunksPerScreenshot || chunkIndex > chunksInScreenshot){
+      return;
+    } 
+    _processChunk(
+      _ScreenshotChunk(
+        screenshotId: screenshotId, 
+        jpegChunk: jpegChunk, 
+        index: chunkIndex, 
+        chunksInScreenshot: chunksInScreenshot
+      ),
+      
+    );
+
+  }  
+
+  void _processChunk(_ScreenshotChunk chunk){
+
     if(_assemblyTargets.containsKey(chunk.screenshotId)){
-      ScreenshotAssembly assemblyTarget = _assemblyTargets[chunk.screenshotId]!;
+      _ScreenshotAssembly assemblyTarget = _assemblyTargets[chunk.screenshotId]!;
       if(chunk.chunksInScreenshot != assemblyTarget.chunks.length){
         _assemblyTargets.remove(chunk.screenshotId);
         return;
@@ -71,35 +99,31 @@ class ScreenshotAssembler {
     if(_assemblyTargets.length >= _maxOngoingAssemblies){
       _removeLeastActiveAssembly();
     }
-    _assemblyTargets[chunk.screenshotId] = ScreenshotAssembly(chunk.chunksInScreenshot);
+    _assemblyTargets[chunk.screenshotId] = _ScreenshotAssembly(chunk.chunksInScreenshot);
     _assemblyTargets[chunk.screenshotId]!.addChunk(chunk.jpegChunk, chunk.index);
     if(_assemblyTargets[chunk.screenshotId]!.isReady){
-      _handleAssemblyReady(chunk.screenshotId, sendPort);
+      _handleAssemblyReady(chunk.screenshotId);
     }
       
     
   
   }
 
-  void _handleAssemblyReady(int assemblyId, [SendPort? sendPort]){
+  void _handleAssemblyReady(int assemblyId){
     BytesBuilder bytesBuilder = BytesBuilder(copy: false);
     for(Uint8List? chunk in _assemblyTargets[assemblyId]!.chunks){
       bytesBuilder.add(chunk!);
     }
     _assemblyTargets.remove(assemblyId);
     
-    if(sendPort != null){
-      sendPort.send(bytesBuilder.takeBytes());
-      return;
-    }
-    _addToStream(bytesBuilder.takeBytes());
+    _screenshotReadyCallback(bytesBuilder.takeBytes());
     
   }
 
   void _removeLeastActiveAssembly() {
 
-    final MapEntry<int, ScreenshotAssembly> leastActiveAssembly = _assemblyTargets.entries.reduce(
-      (MapEntry<int, ScreenshotAssembly> a, MapEntry<int, ScreenshotAssembly> b) => a.value.lastUpdated.isBefore(b.value.lastUpdated) ? a : b,
+    final MapEntry<int, _ScreenshotAssembly> leastActiveAssembly = _assemblyTargets.entries.reduce(
+      (MapEntry<int, _ScreenshotAssembly> a, MapEntry<int, _ScreenshotAssembly> b) => a.value.lastUpdated.isBefore(b.value.lastUpdated) ? a : b,
     );
     _assemblyTargets.remove(leastActiveAssembly.key);
   }

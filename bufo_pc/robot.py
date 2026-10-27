@@ -10,7 +10,7 @@ class Robot:
 
     def click(self, pos_x, pos_y):
         print('clickig')
-        pyautogui.click(pos_x * self._clickWidthScaler, pos_y * self._clickHeightScaler)
+        pyautogui.click(pos_x, pos_y)
 
 
     def key_press(self, key):

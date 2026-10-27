@@ -1,7 +1,7 @@
 
-import 'dart:io';
 
-import 'package:bufo/src/network/network_manager.dart';
+import 'package:bufo/src/network/tcp_client.dart';
+import 'package:bufo/src/network/udp_client.dart';
 import 'package:bufo/src/widgets/custom_app_bar.dart';
 
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
@@ -39,7 +39,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen>{
   }
   
   void handleSubmit() async {
-    if(_formKey.currentState == null||!_formKey.currentState!.validate()){
+    if(_formKey.currentState == null|| _formKey.currentState!.validate()){
       return;
     }
     _formKey.currentState?.save();
@@ -49,22 +49,25 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen>{
     });
 
     
-    String? errorMsg = await NetworkManager.connectToServer(
-      serverIp: InternetAddress(_ipAddress!), 
-      serverPort: int.parse(_portNumber!),
-    );
-   
-    if(errorMsg != null){
-      _networkError(errorMsg);
+    TcpClient tcpClient = TcpClient(serverIp: _ipAddress!, serverPort: int.parse(_portNumber!));
+    UdpClient udpClient = UdpClient();
+    String? tcpError = await tcpClient.connectToServer();
+    String? udpError = await udpClient.launch();
+    if(tcpError != null || udpError != null){
+      _networkError(tcpError??udpError!);
+      tcpClient.closeConnection();
+      udpClient.close();
       return;
-    } 
-    
+    }
+
     if(!context.mounted){return;}
     Navigator.pushReplacement(
       // ignore: use_build_context_synchronously
       context,
       MaterialPageRoute(
-        builder: (BuildContext context) => ControlScreen()
+        builder: (BuildContext context) => ControlScreen(
+          tcpClient: tcpClient, udpClient: udpClient,
+        )
       ),
     );
   }
@@ -74,7 +77,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen>{
       _connectionStatus = ConnectionStatus.failed;
       _errorMessage = msg;
     });
-    await Future.delayed(Duration(seconds: 30));
+    await Future.delayed(Duration(seconds: 14));
     setState(() {
       _connectionStatus = ConnectionStatus.waitingForUserInput;
     });

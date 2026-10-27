@@ -1,7 +1,6 @@
+
+
 import 'package:bufo/src/network/message.dart';
-import 'package:bufo/src/network/network_manager.dart';
-
-
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
 import 'package:bufo/src/widgets/custom_buttons/switch_button.dart';
 import 'package:flutter/material.dart';
@@ -12,13 +11,15 @@ class Keyboard extends StatefulWidget {
 
 
  
-  final double _width;
-  final double _height;
+  final double width;
+  final double height;
+  final void Function(Message) callback;
 
   const new({
     super.key, 
-    this._width = 500,
-    this._height = 180
+    required this.callback,
+    this.width = 500,
+    this.height = 180
   });
 
   @override
@@ -45,14 +46,14 @@ class _KeyboardState extends State<Keyboard>{
 
   
   void _handleKeyPress(String keyValue){
-    NetworkManager.sendMessage(Message.keyPress(keyValue));
+    widget.callback(Message.keyPress(keyValue));
   }
 
   @override
   Widget build(BuildContext context) {
     return  Container(
-      width: widget._width,
-      height: widget._height,
+      width: widget.width,
+      height: widget.height,
       padding: EdgeInsets.all(5.0),
       color: const Color.fromARGB(98, 147, 7, 28),
       child: _createKeys(),

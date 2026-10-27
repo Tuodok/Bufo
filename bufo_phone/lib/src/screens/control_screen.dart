@@ -1,5 +1,6 @@
 import 'package:bufo/src/network/message.dart';
-import 'package:bufo/src/network/network_manager.dart';
+import 'package:bufo/src/network/tcp_client.dart';
+import 'package:bufo/src/network/udp_client.dart';
 import 'package:bufo/src/screens/connect_to_server_screen.dart';
 import 'package:bufo/src/widgets/custom_buttons/dumb_button.dart';
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
@@ -11,7 +12,13 @@ import 'package:flutter/services.dart';
 
 
 class ControlScreen extends StatefulWidget {
-  const new({super.key,});
+  final TcpClient tcpClient;
+  final UdpClient udpClient;
+  const new({
+    super.key,
+    required this.tcpClient,
+    required this.udpClient
+  });
 
   @override
   State<ControlScreen> createState() => _ControlScreenState();
@@ -33,15 +40,15 @@ class _ControlScreenState extends State<ControlScreen> {
 
   @override
   void initState() {
-
-    
-
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeRight,
       DeviceOrientation.landscapeLeft,
     ]);
-    
-  
+    if(widget.tcpClient.disconnectionMsg != null){
+      handleDisconnection(widget.tcpClient.disconnectionMsg!);
+    }
+    widget.tcpClient.onConnectionDoneCallback = handleDisconnection;
+    widget.tcpClient.sendMessage(Message.udp(widget.udpClient.port!));
 
     super.initState();
   }
@@ -61,10 +68,11 @@ class _ControlScreenState extends State<ControlScreen> {
 
 
   void handleDisconnection(String reasonForDisconnection){
+    widget.udpClient.close();
     setState(() {
       _disconnectionMsg = reasonForDisconnection;
     });
-    _goBackToStartingScreen(10);
+    _goBackToStartingScreen(6);
   }
   
   
@@ -78,13 +86,13 @@ class _ControlScreenState extends State<ControlScreen> {
       final RenderBox renderBox = detectionContext.findRenderObject() as RenderBox;
       final double tapAreaWidth = renderBox.size.width;
       final double tapAreaHeight = renderBox.size.height;
-      NetworkManager.sendMessage(Message.screenSize(tapAreaWidth, tapAreaHeight));
+      widget.tcpClient.sendMessage(Message.screenSize(tapAreaWidth, tapAreaHeight));
       _tapAreaSent = true;
     }
     
     _tapPosX = tapDpownDetails.localPosition.dx;
     _tapPosY = tapDpownDetails.localPosition.dy;
-    NetworkManager.sendMessage(Message.tap(_tapPosX, _tapPosY));
+    widget.tcpClient.sendMessage(Message.tap(_tapPosX, _tapPosY));
   }
 
   void toolbarSwitch() {
@@ -125,6 +133,7 @@ class _ControlScreenState extends State<ControlScreen> {
   }
   
   Widget _body(){
+
     if(_disconnectionMsg != null){
       return _connectionEndedDisplay(_disconnectionMsg!);
     }
@@ -142,7 +151,7 @@ class _ControlScreenState extends State<ControlScreen> {
 
   StreamBuilder<Uint8List> _computerScreenDisplay(){
     return StreamBuilder<Uint8List>(
-      stream: NetworkManager.screenshotStream,
+      stream: widget.udpClient.screenshotStream,
       builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
@@ -211,7 +220,7 @@ class _ControlScreenState extends State<ControlScreen> {
           ),
           SizedBox(height: 10),
           NormalButton(
-            callback: () => NetworkManager.closeConnection(),
+            callback: () => widget.tcpClient.closeConnection(),
             buttonsChild: Icon(Icons.power_off),
             secondaryColor: Colors.red,
           ),
@@ -233,10 +242,10 @@ class _ControlScreenState extends State<ControlScreen> {
 
   Widget? _typer() {
     if (_keyboardEnabled) {
-      return Keyboard();
+      return Keyboard(callback:  widget.tcpClient.sendMessage);
     }
     else if(_typeWriterEnabled){
-      return TypeWriter();
+      return TypeWriter(callback: widget.tcpClient.sendMessage);
     }
     return null;
     

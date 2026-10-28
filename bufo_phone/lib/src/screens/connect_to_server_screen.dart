@@ -38,8 +38,8 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen>{
     super.initState();
   }
   
-  void handleSubmit() async {
-    if(_formKey.currentState == null|| _formKey.currentState!.validate()){
+  void _handleSubmit() async {
+    if(_formKey.currentState == null|| !_formKey.currentState!.validate()){
       return;
     }
     _formKey.currentState?.save();
@@ -166,7 +166,7 @@ class _ConnectToServerScreenState extends State<ConnectToServerScreen>{
             ),
             SizedBox(height: 30.0),
             NormalButton(
-              callback: handleSubmit,
+              callback: _handleSubmit,
               buttonsChild: Text('Connect To Server!'),
               sfxPath: 'sound_effects/mixkit-metal-button-push-1830.wav',
             ),

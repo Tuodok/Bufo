@@ -1,6 +1,8 @@
 
 import 'dart:typed_data';
 
+import 'package:bufo/src/widgets/game/joystick.dart';
+
 
 
 
@@ -13,6 +15,13 @@ class Message {
   static const int _udpPortInfoEvent = 14;
   static const int _zoomEvent = 15;
   static const int _cancelZoomEvent = 16;
+
+//udp
+  static const int _joystickLeftEvent = 100;
+  static const int _joystickRightEvent = 101;
+  static const int _joystickUpEvent = 102;
+   static const int _joystickDownEvent = 103;
+  
 
   final Uint8List _msg;
   Uint8List get msg => _msg;
@@ -41,6 +50,10 @@ class Message {
       ByteData data = ByteData.view(_msg.buffer);
       data.setUint8(0, _udpPortInfoEvent);
       data.setUint16(1, port);
+  }
+  Message.udpListener(bool launchOrClose)
+    :_msg = Uint8List(1){
+      _msg[0] = launchOrClose ? 1: 0;
     }
 
   Message.zoom()
@@ -50,6 +63,20 @@ class Message {
   Message.unzoom()
   :_msg= Uint8List(1){
     _msg[0] = _cancelZoomEvent;
+  }
+
+  //UDP
+  Message.joystickLeft(bool startCancel) : _msg = Uint8List(1) {
+    _msg[0] = _joystickLeftEvent;
+  }
+  Message.joystickRight(bool startCancel) : _msg = Uint8List(1) {
+    _msg[0] = _joystickRightEvent;
+  }
+  Message.joystickUp(bool startCancel) : _msg = Uint8List(1) {
+    _msg[0] = _joystickUpEvent;
+  }
+  Message.joystickDown(bool startCancel) : _msg = Uint8List(1) {
+    _msg[0] = _joystickDownEvent;
   }
 
 

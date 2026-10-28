@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 class _ScreenshotAssembly {
@@ -46,15 +47,18 @@ class ScreenshotAssembler {
   static const int _headerSize = 8;
   static const int _maxChunksPerScreenshot = 4000;
 
+  final StreamController<Uint8List> _streamController =
+      StreamController<Uint8List>();
+
   final Map<int, _ScreenshotAssembly> _assemblyTargets = {};
   final int _maxOngoingAssemblies = 6;
-  final void Function(Uint8List) _screenshotReadyCallback;
 
-  ScreenshotAssembler(this._screenshotReadyCallback);
+  StreamController<Uint8List> get screenshotStream => _streamController;
+
+  ScreenshotAssembler();
 
   void processScreenshotChunkData(Uint8List data){
     if(data.length < _headerSize){return;}
-    
 
     final ByteData header = ByteData.sublistView(data.sublist(0, _headerSize));
     final int screenshotId = header.getInt32(0);
@@ -78,7 +82,6 @@ class ScreenshotAssembler {
   }  
 
   void _processChunk(_ScreenshotChunk chunk){
-
     if(_assemblyTargets.containsKey(chunk.screenshotId)){
       _ScreenshotAssembly assemblyTarget = _assemblyTargets[chunk.screenshotId]!;
       if(chunk.chunksInScreenshot != assemblyTarget.chunks.length){
@@ -115,8 +118,7 @@ class ScreenshotAssembler {
       bytesBuilder.add(chunk!);
     }
     _assemblyTargets.remove(assemblyId);
-    
-    _screenshotReadyCallback(bytesBuilder.takeBytes());
+    _streamController.add(bytesBuilder.takeBytes());
     
   }
 

@@ -4,6 +4,7 @@ import 'package:bufo/src/network/udp_client.dart';
 import 'package:bufo/src/screens/connect_to_server_screen.dart';
 import 'package:bufo/src/widgets/custom_buttons/dumb_button.dart';
 import 'package:bufo/src/widgets/custom_buttons/normal_button.dart';
+import 'package:bufo/src/widgets/game/game_ui.dart';
 import 'package:bufo/src/widgets/typers/keyboard.dart';
 import 'package:bufo/src/widgets/typers/type_writer.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +35,7 @@ class _ControlScreenState extends State<ControlScreen> {
   bool _toolbarEnabled = false;
   bool _keyboardEnabled = false;
   bool _typeWriterEnabled = false;
+  bool _gameUiEnabled = false;
 
   String? _disconnectionMsg;
   
@@ -105,12 +107,35 @@ class _ControlScreenState extends State<ControlScreen> {
     setState(() {
       _keyboardEnabled = _keyboardEnabled ? false : true;
       _typeWriterEnabled =false;
+       if (_gameUiEnabled) {
+        widget.tcpClient.sendMessage(Message.udpListener(true));
+        _gameUiEnabled = false;
+      }
     });
   }
   void typeWriterSwitch(){
     setState(() {
       _typeWriterEnabled = _typeWriterEnabled ? false : true;
       _keyboardEnabled = false;
+      if(_gameUiEnabled){
+        widget.tcpClient.sendMessage(Message.udpListener(true));
+        _gameUiEnabled = false;
+      }
+      
+    });
+  }
+  void gameUiSwitch(){
+    setState(() {
+      if(_gameUiEnabled){
+        widget.tcpClient.sendMessage(Message.udpListener(true));
+        _gameUiEnabled =false;
+      }else{
+        widget.tcpClient.sendMessage(Message.udpListener(false));
+        _gameUiEnabled = true;
+      }
+     
+      _keyboardEnabled = false;
+      _typeWriterEnabled =false;
     });
   }
 
@@ -215,8 +240,13 @@ class _ControlScreenState extends State<ControlScreen> {
           ),
           DumbButton(
             callback: typeWriterSwitch,
-            buttonsChild: Icon(Icons.text_increase),
+            buttonsChild: Icon(Icons.textsms),
             color: _typeWriterEnabled ? Colors.yellow : Colors.blue,
+          ),
+           DumbButton(
+            callback: gameUiSwitch,
+            buttonsChild: Icon(Icons.games),
+            color: _gameUiEnabled ? Colors.yellow : Colors.blue,
           ),
           SizedBox(height: 10),
           NormalButton(
@@ -246,6 +276,9 @@ class _ControlScreenState extends State<ControlScreen> {
     }
     else if(_typeWriterEnabled){
       return TypeWriter(callback: widget.tcpClient.sendMessage);
+    }
+    else if( _gameUiEnabled){
+      return GameUI(callback: widget.udpClient.send);
     }
     return null;
     
